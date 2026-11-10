@@ -1,8 +1,8 @@
 name: CTM ML paper trade
 on:
   schedule:
-    - cron: '7 * * * 1-5'      # every hour Mon-Fri (UTC)
-    - cron: '7 21-23 * * 0'    # Sunday evening market open
+    - cron: '23,53 * * * 1-5'   # twice an hour Mon-Fri (UTC); off-peak minutes, duplicate runs are harmless
+    - cron: '23,53 21-23 * * 0' # Sunday evening market open
   workflow_dispatch: {}
 permissions:
   contents: write

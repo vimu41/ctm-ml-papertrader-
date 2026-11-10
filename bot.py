@@ -72,6 +72,7 @@ def append_csv(name, cols, row):
 
 # ---------------------------------------------------------------- trade management
 def manage(sym, pos, H1, now, state):
+    """now = only bars that have CLOSED before this time are used."""
     """walk closed bars from the entry bar; SL checked before TP (same as the backtest)."""
     bars = [b for b in H1 if b['t'] >= pos['entry_t'] and b['t'] + 3600 <= now]
     long_ = pos['side'] == 'BUY'
@@ -105,49 +106,51 @@ def run(feed, now):
     os.makedirs(DATA, exist_ok=True)
     model = json.load(open(os.path.join(ROOT, 'model.json')))
     state = load_state()
-    # 1) close finished trades
-    for sym in list(state['open']):
-        H1 = (feed.get(sym) or {}).get(3600)
-        if H1 and manage(sym, state['open'][sym], H1, now, state):
-            del state['open'][sym]
-    # 2) new signals on the latest closed bar
+    # 2) new signals on every closed bar since the last run (catches up if GitHub skipped a run)
     for sym in SYMBOLS:
         d = feed.get(sym) or {}
         H1, D1 = d.get(3600), d.get(86400)
         if not H1 or not D1:
             continue
-        closed = [b for b in H1 if b['t'] + 3600 <= now][-1000:]
-        if not closed or closed[-1]['t'] <= state['last_bar'].get(sym, 0):
-            continue
-        state['last_bar'][sym] = closed[-1]['t']
-        if now - closed[-1]['t'] > 3 * 3600:          # market closed / stale feed
-            continue
-        meta = model['meta'][sym]
-        F = engine.features(closed, D1, meta['point'], meta['spr'])
-        if F is None:
-            continue
-        pl, ps = engine.predict(model['L'], F['x']), engine.predict(model['S'], F['x'])
-        best = max(pl, ps); side = 'BUY' if pl >= ps else 'SELL'
-        action = 'none'
-        if best > THRESHOLD:
-            nxt = [b for b in H1 if b['t'] == F['t'] + 3600]
-            if sym in state['open']: action = 'skip_has_pos'
-            elif len(state['open']) >= MAX_OPEN: action = 'skip_max_open'
-            elif not nxt: action = 'skip_no_next_bar'
-            else:
-                e = nxt[0]['o']; a = F['atr']
-                sl, tp = (e - a, e + RR * a) if side == 'BUY' else (e + a, e - RR * a)
-                sl, tp = round(sl, 6), round(tp, 6)
-                state['open'][sym] = {'side': side, 'signal_t': F['t'], 'entry_t': nxt[0]['t'], 'entry': e, 'sl': sl, 'tp': tp,
-                                      'atr': a, 'pred': round(best, 3), 'risk_usd': round(state['balance'] * RISK_PCT / 100, 2)}
-                action = 'OPEN ' + side
-                print(f'OPEN {sym} {side} @ {e} SL {sl:.5f} TP {tp:.5f} pred {best:.3f}')
-                # a trade can already be finished if the run was late
-                if manage(sym, state['open'][sym], H1, now, state):
-                    del state['open'][sym]
-        append_csv('signals.csv', ['run_utc', 'symbol', 'bar_utc', 'pred_long', 'pred_short', 'action'],
-                   {'run_utc': utc(now), 'symbol': sym, 'bar_utc': utc(F['t']), 'pred_long': round(pl, 4),
-                    'pred_short': round(ps, 4), 'action': action})
+        closed = [b for b in H1 if b['t'] + 3600 <= now]
+        last = state['last_bar'].get(sym, 0)
+        todo = [k for k, b in enumerate(closed) if b['t'] > last][-12:]
+        if not last:
+            todo = todo[-1:]
+        for k in todo:
+            bar = closed[k]
+            state['last_bar'][sym] = bar['t']
+            if now - bar['t'] > 14 * 3600:            # market closed / stale feed
+                continue
+            # first settle an open trade up to this bar's close
+            if sym in state['open'] and manage(sym, state['open'][sym], H1, bar['t'] + 3600, state):
+                del state['open'][sym]
+            meta = model['meta'][sym]
+            F = engine.features(closed[max(0, k - 999):k + 1], D1, meta['point'], meta['spr'])
+            if F is None:
+                continue
+            pl, ps = engine.predict(model['L'], F['x']), engine.predict(model['S'], F['x'])
+            best = max(pl, ps); side = 'BUY' if pl >= ps else 'SELL'
+            action = 'none'
+            if best > THRESHOLD:
+                nxt = [b for b in H1 if b['t'] == F['t'] + 3600]
+                if sym in state['open']: action = 'skip_has_pos'
+                elif len(state['open']) >= MAX_OPEN: action = 'skip_max_open'
+                elif not nxt: action = 'skip_no_next_bar'
+                else:
+                    e = nxt[0]['o']; a = F['atr']
+                    sl, tp = (e - a, e + RR * a) if side == 'BUY' else (e + a, e - RR * a)
+                    sl, tp = round(sl, 6), round(tp, 6)
+                    state['open'][sym] = {'side': side, 'signal_t': F['t'], 'entry_t': nxt[0]['t'], 'entry': e, 'sl': sl, 'tp': tp,
+                                          'atr': a, 'pred': round(best, 3), 'risk_usd': round(state['balance'] * RISK_PCT / 100, 2)}
+                    action = 'OPEN ' + side
+                    print(f'OPEN {sym} {side} @ {e} SL {sl} TP {tp} pred {best:.3f}')
+            append_csv('signals.csv', ['run_utc', 'symbol', 'bar_utc', 'pred_long', 'pred_short', 'action'],
+                       {'run_utc': utc(now), 'symbol': sym, 'bar_utc': utc(F['t']), 'pred_long': round(pl, 4),
+                        'pred_short': round(ps, 4), 'action': action})
+        # settle anything finished by now
+        if sym in state['open'] and manage(sym, state['open'][sym], H1, now, state):
+            del state['open'][sym]
     state['last_run'] = utc(now)
     json.dump(state, open(os.path.join(DATA, 'state.json'), 'w'), indent=1)
     write_summary(state)
