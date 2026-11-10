@@ -114,13 +114,13 @@ def run(feed, now):
             continue
         closed = [b for b in H1 if b['t'] + 3600 <= now]
         last = state['last_bar'].get(sym, 0)
-        todo = [k for k, b in enumerate(closed) if b['t'] > last][-12:]
+        todo = [k for k, b in enumerate(closed) if b['t'] > last][-48:]
         if not last:
             todo = todo[-1:]
         for k in todo:
             bar = closed[k]
             state['last_bar'][sym] = bar['t']
-            if now - bar['t'] > 14 * 3600:            # market closed / stale feed
+            if now - bar['t'] > 50 * 3600:            # market closed / stale feed
                 continue
             # first settle an open trade up to this bar's close
             if sym in state['open'] and manage(sym, state['open'][sym], H1, bar['t'] + 3600, state):
