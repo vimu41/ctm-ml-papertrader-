@@ -15,6 +15,7 @@ DATA = os.path.join(ROOT, 'data')
 SYMBOLS = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'EURJPY', 'GBPJPY', 'EURGBP',
            'XAUUSD', 'XAGUSD', 'AUDJPY', 'EURAUD', 'GBPAUD', 'CADJPY']
 THRESHOLD, RR, HOLD, MAX_OPEN = 0.10, 2.0, 48, 6
+ROLLOVER_HOURS_UTC = (20, 21, 22)   # no new trades from bars here: broker spreads blow out around the 21:00-22:00 UTC rollover
 START_BALANCE, RISK_PCT = 10000.0, 0.25
 REAL_COST = {'EURUSD': 0.00012, 'GBPUSD': 0.00015, 'USDJPY': 0.015, 'AUDUSD': 0.00015, 'USDCAD': 0.0002,
              'USDCHF': 0.0002, 'EURJPY': 0.025, 'GBPJPY': 0.035, 'EURGBP': 0.0002, 'AUDJPY': 0.025,
@@ -134,7 +135,8 @@ def run(feed, now):
             action = 'none'
             if best > THRESHOLD:
                 nxt = [b for b in H1 if b['t'] == F['t'] + 3600]
-                if sym in state['open']: action = 'skip_has_pos'
+                if dt.datetime.fromtimestamp(F['t'], dt.timezone.utc).hour in ROLLOVER_HOURS_UTC: action = 'skip_rollover'
+                elif sym in state['open']: action = 'skip_has_pos'
                 elif len(state['open']) >= MAX_OPEN: action = 'skip_max_open'
                 elif not nxt: action = 'skip_no_next_bar'
                 else:
