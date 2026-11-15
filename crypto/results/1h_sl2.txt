@@ -1,0 +1,27 @@
+ADAUSDT 68605
+AVAXUSDT 53519
+BNBUSDT 68605
+BTCUSDT 68605
+DOGEUSDT 64169
+ETHUSDT 68605
+LINKUSDT 68235
+LTCUSDT 68605
+SOLUSDT 54527
+XRPUSDT 68605
+year 2021 train 140410 test 87470
+year 2022 train 227880 test 87600
+year 2023 train 315480 test 87590
+year 2024 train 403070 test 87840
+year 2025 train 490910 test 87600
+year 2026 train 578510 test 72460
+
+baseline mean R every bar: long -0.127 short -0.076, median cost 0.092R
+top features: b_dist200, dow, atr_pct, b_ret24, vol_24_168, val_dist, trades_24_168, slope_ema200, cvd72, ret48, poc_dist, vah_dist
+thr 0.0 both: n 21347 avgR -0.014 t -1.5 months+  46% coins+ 4/10 per-year {2021: 0.02, 2022: -0.05, 2023: -0.01, 2024: 0.01, 2025: -0.03, 2026: -0.02}
+thr 0.0 long: n 14029 avgR -0.033 t -3.0 months+  43% coins+ 1/10 per-year {2021: 0.03, 2022: -0.12, 2023: 0.01, 2024: -0.02, 2025: -0.04, 2026: -0.09}
+thr 0.1 both: n 15095 avgR +0.016 t  1.5 months+  54% coins+ 8/10 per-year {2021: 0.05, 2022: -0.04, 2023: 0.03, 2024: 0.02, 2025: -0.01, 2026: 0.08}
+thr 0.1 long: n  8976 avgR +0.015 t  1.1 months+  53% coins+ 6/10 per-year {2021: 0.04, 2022: -0.1, 2023: 0.12, 2024: 0.06, 2025: -0.02, 2026: 0.04}
+thr 0.2 both: n  8427 avgR +0.036 t  2.4 months+  60% coins+ 8/10 per-year {2021: 0.09, 2022: 0.04, 2023: 0.02, 2024: 0.04, 2025: -0.08, 2026: 0.02}
+thr 0.2 long: n  4963 avgR +0.071 t  3.7 months+  53% coins+ 10/10 per-year {2021: 0.09, 2022: 0.03, 2023: 0.15, 2024: 0.23, 2025: -0.14, 2026: -0.01}
+thr 0.3 both: n  4249 avgR +0.046 t  2.2 months+  53% coins+ 8/10 per-year {2021: 0.11, 2022: 0.08, 2023: -0.03, 2024: -0.05, 2025: -0.07, 2026: 0.07}
+thr 0.3 long: n  2358 avgR +0.087 t  3.1 months+  56% coins+ 7/10 per-year {2021: 0.09, 2022: 0.06, 2023: 0.09, 2024: 0.34, 2025: -0.16, 2026: -0.02}
