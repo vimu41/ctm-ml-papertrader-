@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CTM Paper Bots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0f14;--panel:#121820;--panel2:#18202a;--line:#243040;--ink:#e6edf3;--mute:#8b98a8;--faint:#5b6878;
+  --buy:#2fbf71;--sell:#ef5350;--warn:#f5b942;--accent:#4aa3ff;--fx:#4aa3ff;--cr:#f5b942;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif}
+.mono,.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line);background:#0d131a;position:sticky;top:0;z-index:5}
+header h1{font-size:16px;margin:0;letter-spacing:.3px}
+header .meta{color:var(--mute);font-size:12px}
+.tabs{display:flex;gap:4px;margin-left:auto}
+.tabs button{background:transparent;color:var(--mute);border:1px solid var(--line);padding:6px 12px;border-radius:6px;font:inherit;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--ink);background:var(--panel2);border-color:#35465c}
+main{max-width:1180px;margin:0 auto;padding:16px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--mute);margin:0 0 8px;font-weight:600}
+.kpi .v{font:600 22px/1.2 "IBM Plex Mono",monospace}
+.kpi .s{color:var(--mute);font-size:12px;margin-top:2px}
+.pos{color:var(--buy)}.neg{color:var(--sell)}.warn{color:var(--warn)}
+.two{grid-template-columns:2fr 1fr}
+@media(max-width:820px){.two{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:500;font-size:12px}
+td.num,th.num{text-align:right}
+.scroll{overflow-x:auto}
+.empty{color:var(--faint);padding:14px 4px;font-size:13px}
+.bars{display:grid;gap:5px}
+.bar{display:grid;grid-template-columns:76px 1fr 64px;align-items:center;gap:8px;font-size:12px}
+.track{position:relative;height:14px;background:var(--panel2);border-radius:3px;overflow:hidden}
+.track .fill{position:absolute;top:0;bottom:0}
+.track .thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--warn)}
+.track .zero{position:absolute;top:0;bottom:0;width:1px;background:#3a4a5e}
+.pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;border:1px solid var(--line);color:var(--mute)}
+.pill.buy{color:var(--buy);border-color:#1f6b45}.pill.sell{color:var(--sell);border-color:#7a2e2d}.pill.skip{color:var(--warn);border-color:#6b5320}
+svg text{fill:var(--mute);font:11px "IBM Plex Mono",monospace}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:3px;margin-right:6px;vertical-align:middle}
+.note{color:var(--faint);font-size:12px;margin-top:14px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>CTM Paper Bots</h1>
+  <span class="meta" id="built">Loading…</span>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="compare" aria-selected="true">Compare</button>
+    <button role="tab" data-tab="forex" aria-selected="false">Forex bot</button>
+    <button role="tab" data-tab="crypto" aria-selected="false">Crypto bot</button>
+  </nav>
+</header>
+<main>
+  <section id="compare"></section>
+  <section id="forex" class="hidden"></section>
+  <section id="crypto" class="hidden"></section>
+  <p class="note">Paper trades only: no real or demo orders. Forex: Deriv public prices, spread deducted, no trades from 20:00–22:00 UTC bars. Crypto: Binance public prices, 0.2% round-trip cost deducted, long only. R = result in units of the amount risked (0.25% of balance, about $25).</p>
+</main>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const f2 = v => (v >= 0 ? '+' : '') + Number(v).toFixed(2);
+const money = v => '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+function stats(b) {
+  const R = b.trades.map(t => +t.R_net);
+  const n = b.n_trades, wins = R.filter(r => r > 0).length;
+  let eq = 0, pk = 0, dd = 0; [...R].reverse().forEach(r => { eq += r; pk = Math.max(pk, eq); dd = Math.min(dd, eq - pk); });
+  return { n, win: n ? wins / R.length * 100 : null, avg: R.length ? R.reduce((a, c) => a + c, 0) / R.length : null,
+           total: b.equity.length ? b.equity[b.equity.length - 1].r : 0, dd };
+}
+function ageText(utc) {
+  if (!utc) return 'never';
+  const m = Math.round((Date.now() - Date.parse(utc.replace(' ', 'T') + ':00Z')) / 60000);
+  return m < 90 ? m + ' min ago' : Math.round(m / 60) + ' h ago';
+}
+function kpis(b, color) {
+  const s = stats(b), pnl = b.balance - 10000;
+  return `<div class="grid kpis">
+    <div class="card kpi"><h2><span style="color:${color}">●</span> Paper balance</h2><div class="v">${money(b.balance)}</div><div class="s ${pnl >= 0 ? 'pos' : 'neg'}">${pnl >= 0 ? '+' : ''}${money(pnl).replace('$-', '-$')} since ${esc(b.started || '-')}</div></div>
+    <div class="card kpi"><h2>Closed trades</h2><div class="v">${s.n}</div><div class="s">${b.open.length} open now</div></div>
+    <div class="card kpi"><h2>Win rate</h2><div class="v">${s.win == null ? '–' : s.win.toFixed(0) + '%'}</div><div class="s">TP is 2× the stop</div></div>
+    <div class="card kpi"><h2>Avg R / trade</h2><div class="v ${s.avg == null ? '' : s.avg >= 0 ? 'pos' : 'neg'}">${s.avg == null ? '–' : f2(s.avg)}</div><div class="s">backtest ≈ ${f2(b.backtest_r)}</div></div>
+    <div class="card kpi"><h2>Worst drawdown</h2><div class="v">${s.dd.toFixed(2)}R</div><div class="s">total ${f2(s.total)}R</div></div>
+    <div class="card kpi"><h2>Bot health</h2><div class="v" style="font-size:16px">${esc(ageText(b.last_run))}</div><div class="s">${b.bars_week} bars checked in 7 days</div></div>
+  </div>`;
+}
+function equitySvg(series, W = 760) {
+  const H = 220, P = 40;
+  const all = series.flatMap(s => s.pts.map(p => p.r)).concat([0]);
+  const n = Math.max(2, ...series.map(s => s.pts.length + 1));
+  const lo = Math.min(...all, -1), hi = Math.max(...all, 1);
+  const x = i => P + i / (n - 1) * (W - P - 8), y = v => H - 20 - (v - lo) / (hi - lo) * (H - 34);
+  let g = '';
+  [lo, 0, hi].forEach(v => g += `<line x1="${P}" x2="${W - 8}" y1="${y(v)}" y2="${y(v)}" stroke="#243040" ${v === 0 ? '' : 'stroke-dasharray="3 4"'}/><text x="4" y="${y(v) + 4}">${v.toFixed(1)}R</text>`);
+  series.forEach(s => {
+    if (!s.pts.length) return;
+    const pts = [[x(0), y(0)], ...s.pts.map((p, i) => [x(i + 1), y(p.r)])];
+    g += `<polyline fill="none" stroke="${s.color}" stroke-width="2" points="${pts.map(p => p.join(',')).join(' ')}"/>`;
+  });
+  const none = series.every(s => !s.pts.length);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Cumulative R by closed trade">${g}${none ? `<text x="${W / 2 - 110}" y="${H / 2}">No closed trades yet</text>` : ''}</svg>`;
+}
+function predBars(b, twoSided) {
+  if (!b.latest.length) return '<div class="empty">No predictions yet.</div>';
+  const lo = -0.6, hi = 0.4, pct = v => (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * 100;
+  return '<div class="bars">' + b.latest.map(r => {
+    const best = twoSided ? Math.max(r.long, r.short ?? -9) : r.long;
+    const side = twoSided && (r.short ?? -9) > r.long ? 'S' : 'L';
+    const z = pct(0), v = pct(best), col = best > b.threshold ? (side === 'L' ? 'var(--buy)' : 'var(--sell)') : '#3b4b60';
+    const left = Math.min(z, v), w = Math.abs(v - z);
+    return `<div class="bar"><span class="mono">${esc(r.sym)}</span><div class="track" title="bar ${esc(r.bar)} UTC"><span class="zero" style="left:${z}%"></span><span class="fill" style="left:${left}%;width:${w}%;background:${col}"></span><span class="thr" style="left:${pct(b.threshold)}%"></span></div><span class="num" style="text-align:right">${f2(best)} ${twoSided ? side : ''}</span></div>`;
+  }).join('') + `</div><div class="legend"><span><i style="background:var(--warn)"></i>trade threshold ${b.threshold}</span><span>latest closed bar</span></div>`;
+}
+function actionPill(a) {
+  if (a.startsWith('OPEN')) return `<span class="pill ${a.includes('SELL') ? 'sell' : 'buy'}">${esc(a)}</span>`;
+  if (a.startsWith('skip')) return `<span class="pill skip">${esc(a.replace('skip_', 'skipped: '))}</span>`;
+  return `<span class="pill">${esc(a)}</span>`;
+}
+function tables(b) {
+  const open = b.open.length ? `<div class="scroll"><table><tr><th>Symbol</th><th>Side</th><th>Entry (UTC)</th><th class="num">Entry</th><th class="num">SL</th><th class="num">TP</th><th class="num">Pred</th></tr>${
+    b.open.map(o => `<tr><td class="mono">${esc(o.sym)}</td><td>${esc(o.side || 'BUY')}</td><td class="mono">${esc(new Date(o.entry_t * 1000).toISOString().slice(0, 16).replace('T', ' '))}</td><td class="num">${o.entry}</td><td class="num">${o.sl}</td><td class="num">${o.tp}</td><td class="num">${o.pred}</td></tr>`).join('')}</table></div>` : '<div class="empty">No open trades.</div>';
+  const closed = b.trades.length ? `<div class="scroll"><table><tr><th>Symbol</th><th>Side</th><th>Entry (UTC)</th><th>Exit (UTC)</th><th>Reason</th><th class="num">R</th><th class="num">$</th></tr>${
+    b.trades.slice(0, 20).map(t => `<tr><td class="mono">${esc(t.symbol)}</td><td>${esc(t.side)}</td><td class="mono">${esc(t.entry_time_utc)}</td><td class="mono">${esc(t.exit_time_utc)}</td><td>${esc(t.exit_reason)}</td><td class="num ${+t.R_net >= 0 ? 'pos' : 'neg'}">${f2(t.R_net)}</td><td class="num ${+t.pnl_usd >= 0 ? 'pos' : 'neg'}">${f2(t.pnl_usd)}</td></tr>`).join('')}</table></div>` : '<div class="empty">No closed trades yet. The model only trades high-confidence setups.</div>';
+  const top = b.top_week.length ? `<div class="scroll"><table><tr><th>Symbol</th><th>Bar (UTC)</th><th class="num">Pred</th><th>Action</th></tr>${
+    b.top_week.map(t => `<tr><td class="mono">${esc(t.sym)}</td><td class="mono">${esc(t.bar)}</td><td class="num ${t.pred > b.threshold ? 'pos' : ''}">${f2(t.pred)}</td><td>${actionPill(t.action)}</td></tr>`).join('')}</table></div>` : '<div class="empty">No bars in the last 7 days.</div>';
+  return { open, closed, top };
+}
+function whalePanel(w) {
+  if (!w.length) return '<div class="empty">Whale snapshots start with the first crypto bot run.</div>';
+  return `<div class="scroll"><table><tr><th>Coin</th><th class="num">Book imbalance ±1%</th><th class="num">Biggest bid wall</th><th class="num">Biggest ask wall</th><th class="num">Trades ≥$100k</th><th class="num">Big buy / sell</th></tr>${
+    w.map(r => { const im = +r.imbalance_1pct; return `<tr><td class="mono">${esc(r.symbol.replace('USDT', ''))}</td><td class="num ${im > 0.1 ? 'pos' : im < -0.1 ? 'neg' : ''}">${f2(im)}</td><td class="num">${esc(r.bid_wall_price)} · $${(+r.bid_wall_usd / 1e3).toFixed(0)}k</td><td class="num">${esc(r.ask_wall_price)} · $${(+r.ask_wall_usd / 1e3).toFixed(0)}k</td><td class="num">${esc(r.big_trades)} <span style="color:var(--faint)">/${esc(r.trades_window_min)}m</span></td><td class="num">$${(+r.big_buy_usd / 1e6).toFixed(1)}M / $${(+r.big_sell_usd / 1e6).toFixed(1)}M</td></tr>`; }).join('')}</table></div>
+    <div class="legend"><span>Snapshot ${esc(w[0].run_utc)} UTC. Recorded every run for a later backtest; not used by the model yet.</span></div>`;
+}
+function botView(b, color, twoSided, extra = '') {
+  const t = tables(b);
+  return `${kpis(b, color)}
+  <div class="grid two" style="margin-top:12px">
+    <div class="card"><h2>Equity (cumulative R)</h2>${equitySvg([{ pts: [...b.equity], color }])}</div>
+    <div class="card"><h2>Latest predictions</h2>${predBars(b, twoSided)}</div>
+  </div>
+  <div class="grid two" style="margin-top:12px">
+    <div class="card"><h2>Open trades</h2>${t.open}</div>
+    <div class="card"><h2>Top signals, last 7 days</h2>${t.top}</div>
+  </div>
+  <div class="card" style="margin-top:12px"><h2>Closed trades (last 20)</h2>${t.closed}</div>${extra}`;
+}
+function compareView(d) {
+  const row = (label, b, color) => { const s = stats(b); return `<tr><td><span style="color:${color}">●</span> ${esc(label)}</td><td class="num">${money(b.balance)}</td><td class="num">${s.n}</td><td class="num">${s.win == null ? '–' : s.win.toFixed(0) + '%'}</td><td class="num">${s.avg == null ? '–' : f2(s.avg)}</td><td class="num">${f2(b.backtest_r)}</td><td class="num">${s.dd.toFixed(2)}R</td><td class="num">${b.open.length}</td><td>${esc(ageText(b.last_run))}</td></tr>`; };
+  return `<div class="card"><h2>Head to head</h2><div class="scroll"><table><tr><th>Bot</th><th class="num">Balance</th><th class="num">Trades</th><th class="num">Win %</th><th class="num">Avg R</th><th class="num">Backtest R</th><th class="num">Drawdown</th><th class="num">Open</th><th>Last run</th></tr>${row(d.forex.name, d.forex, 'var(--fx)')}${row(d.crypto.name, d.crypto, 'var(--cr)')}</table></div></div>
+  <div class="card" style="margin-top:12px"><h2>Equity, both bots (cumulative R per closed trade)</h2>${equitySvg([{ pts: d.forex.equity, color: 'var(--fx)' }, { pts: d.crypto.equity, color: 'var(--cr)' }], 1120)}<div class="legend"><span><i style="background:var(--fx)"></i>Forex</span><span><i style="background:var(--cr)"></i>Crypto</span></div></div>
+  <div class="card" style="margin-top:12px"><h2>Decision rule</h2><div style="color:var(--mute)">After a month (and ideally 30+ trades each), the bot whose average R holds near its backtest number, with a drawdown we can live with, is the one worth a small real-money test. A bot far below its backtest is stopped.</div></div>`;
+}
+fetch('data.json?ts=' + Date.now()).then(r => r.json()).then(d => {
+  $('#built').textContent = 'Data updated ' + d.built_utc + ' UTC';
+  $('#compare').innerHTML = compareView(d);
+  $('#forex').innerHTML = botView(d.forex, 'var(--fx)', true);
+  $('#crypto').innerHTML = botView(d.crypto, 'var(--cr)', false, `<div class="card" style="margin-top:12px"><h2>Whale watch (order book & large trades)</h2>${whalePanel(d.whales)}</div>`);
+}).catch(e => { $('#built').textContent = 'Could not load data.json: ' + e; });
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  ['compare', 'forex', 'crypto'].forEach(id => $('#' + id).classList.toggle('hidden', id !== b.dataset.tab));
+}));
+</script>
+</body>
+</html>

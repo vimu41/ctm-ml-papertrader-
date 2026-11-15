@@ -115,12 +115,17 @@ def labels(h):
     return L, S, LX, SX
 
 
+def btc_context(btc):
+    b = btc.copy(); bc = b.close
+    btr = pd.concat([b.high - b.low, (b.high - bc.shift()).abs(), (b.low - bc.shift()).abs()], axis=1).max(axis=1).rolling(14).mean()
+    b['b_ret24'] = (bc - bc.shift(24)) / btr; b['b_ret6'] = (bc - bc.shift(6)) / btr; b['b_dist200'] = (bc - ema(bc, 200)) / btr
+    return b
+
+
 def main():
     paths = sorted(glob.glob(os.path.join(HERE, 'history', '*_1h.csv.gz')))
     raw = {os.path.basename(p).split('_')[0]: load(p) for p in paths}
-    b = raw['BTCUSDT'].copy(); bc = b.close
-    btr = pd.concat([b.high - b.low, (b.high - bc.shift()).abs(), (b.low - bc.shift()).abs()], axis=1).max(axis=1).rolling(14).mean()
-    b['b_ret24'] = (bc - bc.shift(24)) / btr; b['b_ret6'] = (bc - bc.shift(6)) / btr; b['b_dist200'] = (bc - ema(bc, 200)) / btr
+    b = btc_context(raw['BTCUSDT'])
     frames = []
     for s, h in raw.items():
         f = features(h, b); L, S, LX, SX = labels(h)

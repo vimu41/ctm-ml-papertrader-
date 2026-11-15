@@ -1,0 +1,27 @@
+name: Dashboard data
+on:
+  schedule:
+    - cron: '55 */4 * * *'     # every 4 hours -> about 6 Netlify deploys a day
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: papertrade
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python dashboard/build.py
+      - name: Save dashboard data
+        run: |
+          git config user.name "ctm-bot"
+          git config user.email "ctm-bot@users.noreply.github.com"
+          git add site/data.json
+          git diff --cached --quiet || git commit -m "dashboard data $(date -u +'%Y-%m-%d %H:%M')"
+          git pull --rebase && git push
