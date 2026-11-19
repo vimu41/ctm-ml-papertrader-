@@ -37,6 +37,7 @@ lw = {}
 for w in whales: lw[w['symbol']] = w
 out = {'built_utc': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M'),
        'forex': bot('Forex ML v3 (H1, 15 pairs, $2 risk : $3 target)', os.path.join(ROOT, 'data'), 0.03, 0.48, True, prob=True),
+       'forex_v2': bot('Forex ML v2 (H1, 15 pairs, 2:1, original model)', os.path.join(ROOT, 'fx_v2', 'data'), 0.12, 0.10, True),
        'crypto': bot('Crypto ML (1h, 10 coins, long only)', os.path.join(ROOT, 'crypto', 'data'), 0.07, 0.20, False),
        'whales': list(lw.values()), 'whale_history': whales[-240:]}
 os.makedirs(os.path.join(ROOT, 'site'), exist_ok=True)

@@ -57,15 +57,17 @@ svg text{fill:var(--mute);font:11px "IBM Plex Mono",monospace}
   <span class="meta" id="built">Loading…</span>
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="compare" aria-selected="true">Compare</button>
-    <button role="tab" data-tab="forex" aria-selected="false">Forex bot</button>
+    <button role="tab" data-tab="forex" aria-selected="false">Forex v3</button>
+    <button role="tab" data-tab="forex2" aria-selected="false">Forex v2</button>
     <button role="tab" data-tab="crypto" aria-selected="false">Crypto bot</button>
   </nav>
 </header>
 <main>
   <section id="compare"></section>
   <section id="forex" class="hidden"></section>
+  <section id="forex2" class="hidden"></section>
   <section id="crypto" class="hidden"></section>
-  <p class="note">Paper trades only: no real or demo orders. Forex v3: risk 1×ATR, target 1.5×ATR, max 10 trades a week, Deriv public prices, spread deducted, no trades from 20:00–22:00 UTC bars. Earlier v2 journal kept in data/v2_archive. Crypto: Binance public prices, 0.2% round-trip cost deducted, long only. R = result in units of the amount risked (0.25% of balance, about $25).</p>
+  <p class="note">Paper trades only: no real or demo orders. Forex v3: risk 1×ATR, target 1.5×ATR, max 10 trades a week, Deriv public prices, spread deducted, no trades from 20:00–22:00 UTC bars. Forex v2 (original 2:1 model, predicted R Earlier v2 journal kept in data/v2_archive.gt; 0.10) runs alongside for comparison. Crypto: Binance public prices, 0.2% round-trip cost deducted, long only. R = result in units of the amount risked (0.25% of balance, about $25).</p>
 </main>
 <script>
 const $ = (s, el = document) => el.querySelector(s);
@@ -160,19 +162,20 @@ function botView(b, color, twoSided, extra = '') {
 }
 function compareView(d) {
   const row = (label, b, color) => { const s = stats(b); return `<tr><td><span style="color:${color}">●</span> ${esc(label)}</td><td class="num">${money(b.balance)}</td><td class="num">${s.n}</td><td class="num">${s.win == null ? '–' : s.win.toFixed(0) + '%'}</td><td class="num">${s.avg == null ? '–' : f2(s.avg)}</td><td class="num">${f2(b.backtest_r)}</td><td class="num">${s.dd.toFixed(2)}R</td><td class="num">${b.open.length}</td><td>${esc(ageText(b.last_run))}</td></tr>`; };
-  return `<div class="card"><h2>Head to head</h2><div class="scroll"><table><tr><th>Bot</th><th class="num">Balance</th><th class="num">Trades</th><th class="num">Win %</th><th class="num">Avg R</th><th class="num">Backtest R</th><th class="num">Drawdown</th><th class="num">Open</th><th>Last run</th></tr>${row(d.forex.name, d.forex, 'var(--fx)')}${row(d.crypto.name, d.crypto, 'var(--cr)')}</table></div></div>
-  <div class="card" style="margin-top:12px"><h2>Equity, both bots (cumulative R per closed trade)</h2>${equitySvg([{ pts: d.forex.equity, color: 'var(--fx)' }, { pts: d.crypto.equity, color: 'var(--cr)' }], 1120)}<div class="legend"><span><i style="background:var(--fx)"></i>Forex</span><span><i style="background:var(--cr)"></i>Crypto</span></div></div>
+  return `<div class="card"><h2>Head to head</h2><div class="scroll"><table><tr><th>Bot</th><th class="num">Balance</th><th class="num">Trades</th><th class="num">Win %</th><th class="num">Avg R</th><th class="num">Backtest R</th><th class="num">Drawdown</th><th class="num">Open</th><th>Last run</th></tr>${row(d.forex.name, d.forex, 'var(--fx)')}${d.forex_v2 ? row(d.forex_v2.name, d.forex_v2, '#8a63d2') : ''}${row(d.crypto.name, d.crypto, 'var(--cr)')}</table></div></div>
+  <div class="card" style="margin-top:12px"><h2>Equity, both bots (cumulative R per closed trade)</h2>${equitySvg([{ pts: d.forex.equity, color: 'var(--fx)' }, { pts: (d.forex_v2 || {equity: []}).equity, color: '#8a63d2' }, { pts: d.crypto.equity, color: 'var(--cr)' }], 1120)}<div class="legend"><span><i style="background:var(--fx)"></i>Forex v3</span><span><i style="background:#8a63d2"></i>Forex v2</span><span><i style="background:var(--cr)"></i>Crypto</span></div></div>
   <div class="card" style="margin-top:12px"><h2>Decision rule</h2><div style="color:var(--mute)">After a month (and ideally 30+ trades each), the bot whose average R holds near its backtest number, with a drawdown we can live with, is the one worth a small real-money test. A bot far below its backtest is stopped.</div></div>`;
 }
 fetch('data.json?ts=' + Date.now()).then(r => r.json()).then(d => {
   $('#built').textContent = 'Data updated ' + d.built_utc + ' UTC';
   $('#compare').innerHTML = compareView(d);
   $('#forex').innerHTML = botView(d.forex, 'var(--fx)', true);
+  if (d.forex_v2) $('#forex2').innerHTML = botView(d.forex_v2, '#8a63d2', true);
   $('#crypto').innerHTML = botView(d.crypto, 'var(--cr)', false, `<div class="card" style="margin-top:12px"><h2>Whale watch (order book & large trades)</h2>${whalePanel(d.whales)}</div>`);
 }).catch(e => { $('#built').textContent = 'Could not load data.json: ' + e; });
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
-  ['compare', 'forex', 'crypto'].forEach(id => $('#' + id).classList.toggle('hidden', id !== b.dataset.tab));
+  ['compare', 'forex', 'forex2', 'crypto'].forEach(id => $('#' + id).classList.toggle('hidden', id !== b.dataset.tab));
 }));
 </script>
 </body>
