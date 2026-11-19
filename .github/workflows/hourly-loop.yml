@@ -1,6 +1,6 @@
 name: Hourly loop (reliable runner)
 # GitHub's own cron often skips hours. This job starts every 5 hours and itself runs all
-# three bots once an hour for ~5h40m (public repo: Actions minutes are free).
+# three bots once an hour for ~5h40m, then starts its own successor (public repo: Actions minutes are free).
 on:
   schedule:
     - cron: '3 */5 * * *'
@@ -10,7 +10,7 @@ permissions:
   actions: write
 concurrency:
   group: hourly-loop
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   loop:
     runs-on: ubuntu-latest
@@ -42,3 +42,5 @@ jobs:
             [ $next -lt $end ] || break
             sleep $(( next - now ))
           done
+          # hand over to a fresh run so the loop never depends on GitHub's cron
+          gh workflow run hourly-loop.yml --ref main
