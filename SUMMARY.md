@@ -1,6 +1,6 @@
-# CTM ML paper trading - live forward test
+# CTM ML v3 paper trading - live forward test (risk 1 ATR, target 1.5 ATR)
 
-Started 2026-11-10 04:10 UTC · last run 2026-11-19 04:35 UTC
+Started 2026-11-10 04:10 UTC · last run 2026-11-19 05:23 UTC
 
 | Metric | Value |
 |---|---|
