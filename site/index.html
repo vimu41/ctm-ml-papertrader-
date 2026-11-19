@@ -65,7 +65,7 @@ svg text{fill:var(--mute);font:11px "IBM Plex Mono",monospace}
   <section id="compare"></section>
   <section id="forex" class="hidden"></section>
   <section id="crypto" class="hidden"></section>
-  <p class="note">Paper trades only: no real or demo orders. Forex: Deriv public prices, spread deducted, no trades from 20:00–22:00 UTC bars. Crypto: Binance public prices, 0.2% round-trip cost deducted, long only. R = result in units of the amount risked (0.25% of balance, about $25).</p>
+  <p class="note">Paper trades only: no real or demo orders. Forex v3: risk 1×ATR, target 1.5×ATR, max 10 trades a week, Deriv public prices, spread deducted, no trades from 20:00–22:00 UTC bars. Earlier v2 journal kept in data/v2_archive. Crypto: Binance public prices, 0.2% round-trip cost deducted, long only. R = result in units of the amount risked (0.25% of balance, about $25).</p>
 </main>
 <script>
 const $ = (s, el = document) => el.querySelector(s);
@@ -114,14 +114,16 @@ function equitySvg(series, W = 760) {
 }
 function predBars(b, twoSided) {
   if (!b.latest.length) return '<div class="empty">No predictions yet.</div>';
-  const lo = -0.6, hi = 0.4, pct = v => (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * 100;
+  const vals = b.latest.flatMap(r => [r.long, r.short ?? r.long]).concat([b.threshold]);
+  const lo = b.prob ? Math.min(...vals) - 0.01 : -0.6, hi = b.prob ? Math.max(...vals) + 0.01 : 0.4;
+  const pct = v => (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * 100;
   return '<div class="bars">' + b.latest.map(r => {
     const best = twoSided ? Math.max(r.long, r.short ?? -9) : r.long;
     const side = twoSided && (r.short ?? -9) > r.long ? 'S' : 'L';
-    const z = pct(0), v = pct(best), col = best > b.threshold ? (side === 'L' ? 'var(--buy)' : 'var(--sell)') : '#3b4b60';
+    const z = pct(b.prob ? lo : 0), v = pct(best), col = best > b.threshold ? (side === 'L' ? 'var(--buy)' : 'var(--sell)') : '#3b4b60';
     const left = Math.min(z, v), w = Math.abs(v - z);
-    return `<div class="bar"><span class="mono">${esc(r.sym)}</span><div class="track" title="bar ${esc(r.bar)} UTC"><span class="zero" style="left:${z}%"></span><span class="fill" style="left:${left}%;width:${w}%;background:${col}"></span><span class="thr" style="left:${pct(b.threshold)}%"></span></div><span class="num" style="text-align:right">${f2(best)} ${twoSided ? side : ''}</span></div>`;
-  }).join('') + `</div><div class="legend"><span><i style="background:var(--warn)"></i>trade threshold ${b.threshold}</span><span>latest closed bar</span></div>`;
+    return `<div class="bar"><span class="mono">${esc(r.sym)}</span><div class="track" title="bar ${esc(r.bar)} UTC"><span class="zero" style="left:${z}%"></span><span class="fill" style="left:${left}%;width:${w}%;background:${col}"></span><span class="thr" style="left:${pct(b.threshold)}%"></span></div><span class="num" style="text-align:right">${b.prob ? (best * 100).toFixed(1) + '%' : f2(best)} ${twoSided ? side : ''}</span></div>`;
+  }).join('') + `</div><div class="legend"><span><i style="background:var(--warn)"></i>trade threshold ${b.prob ? (b.threshold * 100).toFixed(1) + '% win chance (top 0.5%, adaptive)' : b.threshold}</span><span>latest closed bar</span></div>`;
 }
 function actionPill(a) {
   if (a.startsWith('OPEN')) return `<span class="pill ${a.includes('SELL') ? 'sell' : 'buy'}">${esc(a)}</span>`;
@@ -134,7 +136,7 @@ function tables(b) {
   const closed = b.trades.length ? `<div class="scroll"><table><tr><th>Symbol</th><th>Side</th><th>Entry (UTC)</th><th>Exit (UTC)</th><th>Reason</th><th class="num">R</th><th class="num">$</th></tr>${
     b.trades.slice(0, 20).map(t => `<tr><td class="mono">${esc(t.symbol)}</td><td>${esc(t.side)}</td><td class="mono">${esc(t.entry_time_utc)}</td><td class="mono">${esc(t.exit_time_utc)}</td><td>${esc(t.exit_reason)}</td><td class="num ${+t.R_net >= 0 ? 'pos' : 'neg'}">${f2(t.R_net)}</td><td class="num ${+t.pnl_usd >= 0 ? 'pos' : 'neg'}">${f2(t.pnl_usd)}</td></tr>`).join('')}</table></div>` : '<div class="empty">No closed trades yet. The model only trades high-confidence setups.</div>';
   const top = b.top_week.length ? `<div class="scroll"><table><tr><th>Symbol</th><th>Bar (UTC)</th><th class="num">Pred</th><th>Action</th></tr>${
-    b.top_week.map(t => `<tr><td class="mono">${esc(t.sym)}</td><td class="mono">${esc(t.bar)}</td><td class="num ${t.pred > b.threshold ? 'pos' : ''}">${f2(t.pred)}</td><td>${actionPill(t.action)}</td></tr>`).join('')}</table></div>` : '<div class="empty">No bars in the last 7 days.</div>';
+    b.top_week.map(t => `<tr><td class="mono">${esc(t.sym)}</td><td class="mono">${esc(t.bar)}</td><td class="num ${t.pred >= b.threshold ? 'pos' : ''}">${b.prob ? (t.pred * 100).toFixed(1) + '%' : f2(t.pred)}</td><td>${actionPill(t.action)}</td></tr>`).join('')}</table></div>` : '<div class="empty">No bars in the last 7 days.</div>';
   return { open, closed, top };
 }
 function whalePanel(w) {

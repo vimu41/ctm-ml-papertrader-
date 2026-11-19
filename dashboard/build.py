@@ -7,7 +7,7 @@ def rows(p):
     return list(csv.DictReader(open(p, newline=''))) if os.path.exists(p) else []
 
 
-def bot(name, folder, backtest_r, threshold, two_sided):
+def bot(name, folder, backtest_r, threshold, two_sided, prob=False):
     st = json.load(open(os.path.join(folder, 'state.json'))) if os.path.exists(os.path.join(folder, 'state.json')) else {}
     trades = rows(os.path.join(folder, 'trades.csv')); sig = rows(os.path.join(folder, 'signals.csv'))
     latest = {}
@@ -29,14 +29,14 @@ def bot(name, folder, backtest_r, threshold, two_sided):
     return {'name': name, 'balance': st.get('balance', 10000), 'started': st.get('started'), 'last_run': st.get('last_run'),
             'open': [dict(sym=k, **v) for k, v in st.get('open', {}).items()], 'trades': trades[-50:][::-1], 'n_trades': len(trades),
             'equity': eq, 'latest': lat, 'top_week': [{'pred': round(a, 3), 'sym': b, 'bar': c_, 'action': d} for a, b, c_, d in top],
-            'bars_week': len(week), 'backtest_r': backtest_r, 'threshold': threshold}
+            'bars_week': len(week), 'backtest_r': backtest_r, 'threshold': st.get('thr', threshold), 'prob': prob}
 
 
 whales = rows(os.path.join(ROOT, 'crypto', 'data', 'whales.csv'))
 lw = {}
 for w in whales: lw[w['symbol']] = w
 out = {'built_utc': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M'),
-       'forex': bot('Forex ML (H1, 15 pairs)', os.path.join(ROOT, 'data'), 0.12, 0.10, True),
+       'forex': bot('Forex ML v3 (H1, 15 pairs, $2 risk : $3 target)', os.path.join(ROOT, 'data'), 0.03, 0.48, True, prob=True),
        'crypto': bot('Crypto ML (1h, 10 coins, long only)', os.path.join(ROOT, 'crypto', 'data'), 0.07, 0.20, False),
        'whales': list(lw.values()), 'whale_history': whales[-240:]}
 os.makedirs(os.path.join(ROOT, 'site'), exist_ok=True)

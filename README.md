@@ -3,6 +3,6 @@
 Hourly forward test of the CTM ML v2 model (LightGBM, forex + metals, H1), run by GitHub Actions.
 No money and no broker account involved: trades are "paper" trades on Deriv's public price feed.
 
-- Rules: predicted R > 0.10 → enter next bar open, SL 1×ATR14, TP 2×ATR14, close after 48 H1 bars. Max 6 open, one per symbol. No new trades from the 20:00-22:00 UTC bars (rollover spreads).
+- Forex v3 rules (from 2026-11-19): LightGBM win-probability model; trade when P is in the top 0.5% of the last 14 days, max 10 new trades a week, SL 1×ATR14, TP 1.5×ATR14 ($2 risk : $3 target), close after 48 H1 bars, no trades from 20:00-22:00 UTC bars. v2 journal in data/v2_archive.
 - Paper balance $10,000, risk 0.25% per trade, realistic Deriv spread deducted from every trade.
 - Results: see **SUMMARY.md**, full journal `data/trades.csv`, every signal `data/signals.csv`.
