@@ -101,7 +101,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
 </div>
 <script>
 const SY = ['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCAD','USDCHF','EURJPY','GBPJPY','EURGBP','XAUUSD','XAGUSD','AUDJPY','EURAUD','GBPAUD','CADJPY'];
-const URLS = ['wss://ws.derivws.com/websockets/v3?app_id=1089', 'wss://api.derivws.com/trading/v1/options/ws/public'];
+const URLS = ['wss://api.derivws.com/trading/v1/options/ws/public', 'wss://ws.derivws.com/websockets/v3?app_id=1089'];
 const ROLL = [20, 21, 22];
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -171,7 +171,7 @@ async function refreshAll() {
   setStatus('Updating…', '');
   for (const s of SY) { await loadPair(s); render(); }
   setStatus('Live · Deriv feed · ' + new Date().toLocaleTimeString(), 'live');
-  if (selected) showPair(selected, false);
+  if (!selected) { selected = SY.find(x => st[x].F) || 'EURUSD'; render(); showPair(selected, true); } else showPair(selected, false);
 }
 function setStatus(t, c) { $('#status').textContent = t; $('#dot').className = 'dot ' + c; }
 
@@ -270,7 +270,7 @@ setInterval(() => { const n = new Date(), m = 59 - n.getUTCMinutes(), s = 59 - n
 (async () => {
   MODEL = await fetch('model_v3.json').then(r => r.json());
   await loadBot(); setStatus('Connecting to Deriv…', '');
-  await connect(); await refreshAll(); if (!selected) { selected = 'EURUSD'; render(); showPair('EURUSD', true); }
+  await connect(); await refreshAll();
   // refresh one minute after every H1 close, prices every 2 minutes, bot data every 10 minutes
   setInterval(refreshAll, 2 * 60 * 1000); setInterval(loadBot, 10 * 60 * 1000);
 })();
