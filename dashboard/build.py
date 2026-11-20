@@ -29,7 +29,8 @@ def bot(name, folder, backtest_r, threshold, two_sided, prob=False):
     return {'name': name, 'balance': st.get('balance', 10000), 'started': st.get('started'), 'last_run': st.get('last_run'),
             'open': [dict(sym=k, **v) for k, v in st.get('open', {}).items()], 'trades': trades[-50:][::-1], 'n_trades': len(trades),
             'equity': eq, 'latest': lat, 'top_week': [{'pred': round(a, 3), 'sym': b, 'bar': c_, 'action': d} for a, b, c_, d in top],
-            'bars_week': len(week), 'backtest_r': backtest_r, 'threshold': st.get('thr', threshold), 'prob': prob}
+            'bars_week': len(week), 'backtest_r': backtest_r, 'threshold': st.get('thr', threshold), 'prob': prob,
+            'week_count': st.get('week_count', {})}
 
 
 whales = rows(os.path.join(ROOT, 'crypto', 'data', 'whales.csv'))

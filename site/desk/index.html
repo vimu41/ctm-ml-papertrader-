@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CTM Forex v3 Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#0b0f14;--panel:#121820;--panel2:#18202a;--line:#243040;--ink:#e6edf3;--mute:#8b98a8;--faint:#5b6878;
+--buy:#2fbf71;--sell:#ef5350;--warn:#f5b942;--accent:#4aa3ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif}
+.num,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:#0d131a;position:sticky;top:0;z-index:10}
+header h1{font-size:16px;margin:0}
+.meta{color:var(--mute);font-size:12px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);margin-right:6px;vertical-align:middle}
+.dot.live{background:var(--buy);box-shadow:0 0 6px var(--buy)}.dot.err{background:var(--sell)}
+.controls{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center}
+button,select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+button.on{background:#223042;border-color:#35465c}
+a{color:var(--accent)}
+main{max-width:1320px;margin:0 auto;padding:14px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px}
+@media(max-width:1000px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--mute);margin:0 0 8px;font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.kpi .v{font:600 20px/1.2 "IBM Plex Mono",monospace}.kpi .s{color:var(--mute);font-size:12px}
+.scroll{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 7px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}
+th{color:var(--mute);font-weight:500;font-size:12px;background:var(--panel);position:sticky;top:0}
+td.num,th.num{text-align:right}
+tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{background:#1b2735}
+.pos{color:var(--buy)}.neg{color:var(--sell)}.warn{color:var(--warn)}.dim{color:var(--faint)}
+.meter{position:relative;height:12px;width:150px;background:var(--panel2);border-radius:3px;overflow:hidden}
+.meter .f{position:absolute;top:0;bottom:0;left:0}
+.meter .t{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--warn)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;border:1px solid var(--line);color:var(--mute)}
+.pill.sig{color:#0b0f14;background:var(--buy);border-color:var(--buy);font-weight:600}.pill.sig.s{background:var(--sell);border-color:var(--sell)}
+.pill.near{color:var(--warn);border-color:#6b5320}.pill.roll{color:var(--faint)}
+#chart{height:340px}
+.row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed #1d2734;padding:5px 0;font-size:13px}
+.row .k{color:var(--mute)}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.lv{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center}
+.lv .k{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.6px}.lv .v{font:600 15px "IBM Plex Mono",monospace}
+.tfs{display:flex;gap:4px;margin-bottom:8px}
+.empty{color:var(--faint);font-size:13px;padding:10px 2px}
+.note{color:var(--faint);font-size:12px;margin:10px 0 0}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:3px;margin-right:5px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <h1>CTM Forex v3 Desk</h1>
+  <span class="meta"><span class="dot" id="dot"></span><span id="status">Loading model…</span></span>
+  <div class="controls">
+    <span class="meta" id="nextBar"></span>
+    <button id="notify" title="Browser alert when a pair reaches the threshold">🔔 Alerts off</button>
+    <a class="meta" href="../">Bot dashboard</a>
+  </div>
+</header>
+<main>
+  <section>
+    <div class="kpis">
+      <div class="card kpi"><h2>Threshold</h2><div class="v" id="kThr">–</div><div class="s">win chance needed (top 0.5%, 14 days)</div></div>
+      <div class="card kpi"><h2>Trades this week</h2><div class="v" id="kWeek">–</div><div class="s">cap 10 a week</div></div>
+      <div class="card kpi"><h2>Signals now</h2><div class="v" id="kSig">–</div><div class="s">pairs at or above threshold</div></div>
+      <div class="card kpi"><h2>Paper balance</h2><div class="v" id="kBal">–</div><div class="s" id="kBalS">bot journal</div></div>
+    </div>
+    <div class="card">
+      <h2>All pairs · last closed H1 bar · risk 1×ATR, target 1.5×ATR</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Pair</th><th class="num">Price</th><th class="num">Win% long</th><th class="num">Win% short</th><th>vs threshold</th><th>Status</th><th class="num">ATR (pips)</th><th>Trend H1 / D1</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="8" class="empty">Loading prices from Deriv…</td></tr></tbody>
+      </table></div>
+      <div class="legend"><span><i style="background:var(--warn)"></i>threshold</span><span>Coin-toss win rate at 1.5:1 ≈ 39%. Backtest of this exact rule: ~3 trades/week, 47% win.</span></div>
+    </div>
+  </section>
+  <section style="display:grid;gap:12px;align-content:start">
+    <div class="card">
+      <h2 id="dTitle">Select a pair</h2>
+      <div class="tfs" id="tfs">
+        <button data-g="300">M5</button><button data-g="900">M15</button><button data-g="3600" class="on">H1</button><button data-g="14400">H4</button>
+      </div>
+      <div id="chart"></div>
+      <div class="legend"><span><i style="background:#8a63d2"></i>EMA 200</span><span><i style="background:var(--buy)"></i>target</span><span><i style="background:var(--sell)"></i>stop</span><span>Signal is H1 only; other timeframes are for viewing the entry.</span></div>
+      <div class="levels" id="levels"></div>
+    </div>
+    <div class="card"><h2>Why (model inputs)</h2><div id="why"><div class="empty">–</div></div></div>
+    <div class="card"><h2>Bot: open trades</h2><div id="botOpen"><div class="empty">–</div></div></div>
+    <div class="card"><h2>Bot: recent closed trades</h2><div id="botClosed"><div class="empty">–</div></div></div>
+  </section>
+</main>
+<div style="max-width:1320px;margin:0 auto;padding:0 14px 20px">
+  <p class="note">Same model and rule as the paper bot (v3): a LightGBM model estimates the chance that price reaches 1.5×ATR in your favour before 1×ATR against, within 48 hours. The bot trades a pair when that chance is at or above the threshold, at most 10 trades a week, never from the 20:00–22:00 UTC bars. Prices: Deriv public feed. Paper trading only, not financial advice.</p>
+</div>
+<script>
+const SY = ['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCAD','USDCHF','EURJPY','GBPJPY','EURGBP','XAUUSD','XAGUSD','AUDJPY','EURAUD','GBPAUD','CADJPY'];
+const URLS = ['wss://ws.derivws.com/websockets/v3?app_id=1089', 'wss://api.derivws.com/trading/v1/options/ws/public'];
+const ROLL = [20, 21, 22];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let MODEL = null, BOT = null, thr = null, st = {}, selected = null, tf = 3600, ws = null, ui = 0, reqId = 1, pending = {}, alertsOn = false, alerted = {};
+SY.forEach(s => st[s] = {});
+
+// ---------- engine (same maths as the bot's engine.py)
+const E = (() => {
+  const mean = (v, i, n) => { if (i - n + 1 < 0) return NaN; let s = 0; for (let k = i - n + 1; k <= i; k++) s += v[k]; return s / n; };
+  const hmax = (B, i, n) => { let m = -Infinity; for (let k = i - n + 1; k <= i; k++) m = Math.max(m, B[k].h); return m; };
+  const lmin = (B, i, n) => { let m = Infinity; for (let k = i - n + 1; k <= i; k++) m = Math.min(m, B[k].l); return m; };
+  const emaPair = (c, n, upto) => { const a = 2 / (n + 1); let e = c[0], p5 = e; for (let i = 1; i <= upto; i++) { e = a * c[i] + (1 - a) * e; if (i === upto - 5) p5 = e; } return [e, p5]; };
+  const trArr = B => B.map((b, k) => k === 0 ? b.h - b.l : Math.max(b.h - b.l, Math.abs(b.h - B[k - 1].c), Math.abs(b.l - B[k - 1].c)));
+  function features(H, D) {
+    const x = new Array(29).fill(NaN), n = H.length, i = n - 1; if (n < 400) return null;
+    const c = H.map(b => b.c), tr = trArr(H), atr = mean(tr, i, 14), atr100 = mean(tr, i, 100); if (!(atr > 0)) return null;
+    [1, 3, 6, 12, 24, 48, 120].forEach((r, k) => x[k] = (c[i] - c[i - r]) / atr); x[7] = atr / atr100;
+    const em = {}; [20, 50, 200].forEach((p, k) => { const [e, p5] = emaPair(c, p, i); em[p] = e; x[8 + 2 * k] = (c[i] - e) / atr; x[9 + 2 * k] = (e - p5) / atr; });
+    const tk = (hmax(H, i, 9) + lmin(H, i, 9)) / 2, kj = (hmax(H, i, 26) + lmin(H, i, 26)) / 2, j = i - 26;
+    const sa = ((hmax(H, j, 9) + lmin(H, j, 9)) / 2 + (hmax(H, j, 26) + lmin(H, j, 26)) / 2) / 2, sb = (hmax(H, j, 52) + lmin(H, j, 52)) / 2;
+    x[14] = (c[i] - (sa + sb) / 2) / atr; x[15] = (sa - sb) / atr; x[16] = (tk - kj) / atr;
+    let up = 0, dn = 0; for (let k = i - 13; k <= i; k++) { const d = c[k] - c[k - 1]; if (d > 0) up += d; else dn -= d; }
+    up /= 14; dn /= 14; x[17] = dn === 0 ? NaN : 100 - 100 / (1 + up / dn);
+    [20, 100].forEach((p, k) => { const hh = hmax(H, i, p), ll = lmin(H, i, p); x[18 + k] = hh - ll === 0 ? NaN : (c[i] - ll) / (hh - ll); });
+    const dt = new Date(H[i].t * 1000), hr = dt.getUTCHours();
+    x[20] = Math.sin(2 * Math.PI * hr / 24); x[21] = Math.cos(2 * Math.PI * hr / 24); x[22] = (dt.getUTCDay() + 6) % 7; x[23] = 0;
+    let d1 = null;
+    if (D && D.length) {
+      let q = -1; for (let k = D.length - 1; k >= 0; k--) if (D[k].t + 86400 <= H[i].t) { q = k; break; }
+      if (q >= 205) { const Dd = D.slice(0, q + 1), dc = Dd.map(b => b.c), datr = mean(trArr(Dd), q, 14);
+        if (datr > 0) { x[24] = (dc[q] - dc[q - 1]) / datr; x[25] = (dc[q] - dc[q - 5]) / datr; x[26] = (dc[q] - dc[q - 20]) / datr;
+          x[27] = (dc[q] - emaPair(dc, 50, q)[0]) / datr; x[28] = (dc[q] - emaPair(dc, 200, q)[0]) / datr; d1 = x[28]; } } }
+    return { x, atr, t: H[i].t, close: c[i], em, rsi: x[17], d1 };
+  }
+  function predict(M, x) { let s = 0; for (const root of M.root) { let nd = root; while (nd >= 0) { const v = x[M.f[nd]];
+    const left = Number.isNaN(v) ? (M.m[nd] === 0 ? 0 <= M.t[nd] : M.m[nd] === 1) : v <= M.t[nd]; nd = left ? M.l[nd] : M.r[nd]; } s += M.v[-nd - 1]; } return s; }
+  return { features, predict };
+})();
+const x28 = x => x.slice(0, 23).concat(x.slice(24));
+const prob = (M, x) => 1 / (1 + Math.exp(-E.predict(M, x)));
+const pipOf = s => /JPY/.test(s) ? 0.01 : s === 'XAUUSD' ? 0.1 : s === 'XAGUSD' ? 0.01 : 0.0001;
+const dp = s => /JPY/.test(s) ? 3 : s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 5;
+
+// ---------- Deriv feed
+function send(req) { return new Promise((res, rej) => { const id = reqId++; pending[id] = { res, rej }; ws.send(JSON.stringify(Object.assign(req, { req_id: id })));
+  setTimeout(() => { if (pending[id]) { delete pending[id]; rej(new Error('timeout')); } }, 20000); }); }
+function connect() { return new Promise(res => {
+  ws = new WebSocket(URLS[ui % URLS.length]);
+  ws.onopen = () => res(); ws.onerror = () => {};
+  ws.onclose = () => { ui++; setStatus('Reconnecting…', 'err'); setTimeout(() => connect().then(refreshAll), 4000); };
+  ws.onmessage = ev => { const m = JSON.parse(ev.data); const p = pending[m.req_id]; if (!p) return; delete pending[m.req_id]; m.error ? p.rej(new Error(m.error.message)) : p.res(m); };
+}); }
+const candles = (sym, g, n) => send({ ticks_history: 'frx' + sym, style: 'candles', granularity: g, count: n, end: 'latest' })
+  .then(m => (m.candles || []).map(c => ({ t: +c.epoch, o: +c.open, h: +c.high, l: +c.low, c: +c.close })));
+
+async function loadPair(s) {
+  try {
+    const [H, D] = await Promise.all([candles(s, 3600, 1000), candles(s, 86400, 300)]);
+    const now = Date.now() / 1000, closed = H.filter(b => b.t + 3600 <= now);
+    const F = E.features(closed, D); if (!F) { st[s].err = 'not enough history'; return; }
+    const xv = x28(F.x);
+    Object.assign(st[s], { H, D, F, pl: prob(MODEL.L, xv), ps: prob(MODEL.S, xv), price: H[H.length - 1].c,
+      roll: ROLL.includes(new Date(F.t * 1000).getUTCHours()), err: null });
+  } catch (e) { st[s].err = e.message; }
+}
+async function refreshAll() {
+  setStatus('Updating…', '');
+  for (const s of SY) { await loadPair(s); render(); }
+  setStatus('Live · Deriv feed · ' + new Date().toLocaleTimeString(), 'live');
+  if (selected) showPair(selected, false);
+}
+function setStatus(t, c) { $('#status').textContent = t; $('#dot').className = 'dot ' + c; }
+
+// ---------- render
+function statusOf(r) {
+  const best = Math.max(r.pl, r.ps), side = r.pl >= r.ps ? 'BUY' : 'SELL';
+  if (thr == null) return { html: '<span class="pill">–</span>', sig: false };
+  if (best >= thr && r.roll) return { html: '<span class="pill roll">rollover, skipped</span>', sig: false };
+  if (best >= thr) return { html: `<span class="pill sig ${side === 'SELL' ? 's' : ''}">${side} SIGNAL</span>`, sig: true, side };
+  if (best >= thr - 0.015) return { html: '<span class="pill near">near</span>', sig: false };
+  return { html: '<span class="pill">wait</span>', sig: false };
+}
+function render() {
+  let sig = 0;
+  $('#rows').innerHTML = SY.map(s => {
+    const r = st[s], name = s.slice(0, 3) + '/' + s.slice(3);
+    if (!r.F) return `<tr data-s="${s}"><td class="mono">${name}</td><td colspan="7" class="dim">${esc(r.err || 'loading…')}</td></tr>`;
+    const best = Math.max(r.pl, r.ps), S = statusOf(r); if (S.sig) sig++;
+    const lo = 0.30, hi = 0.55, pct = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
+    const col = best >= (thr ?? 1) ? (r.pl >= r.ps ? 'var(--buy)' : 'var(--sell)') : '#3b4b60';
+    const tH = r.F.close > r.F.em[200] ? '<span class="pos">▲</span>' : '<span class="neg">▼</span>';
+    const tD = r.F.d1 == null ? '–' : r.F.d1 > 0 ? '<span class="pos">▲</span>' : '<span class="neg">▼</span>';
+    if (S.sig && alertsOn && alerted[s] !== r.F.t) { alerted[s] = r.F.t; new Notification(`CTM v3: ${S.side} ${name}`, { body: `Win chance ${(best * 100).toFixed(1)}% ≥ ${(thr * 100).toFixed(1)}%` }); }
+    return `<tr data-s="${s}" class="${s === selected ? 'sel' : ''}"><td class="mono">${name}</td><td class="num">${r.price.toFixed(dp(s))}</td>
+      <td class="num ${r.pl >= r.ps ? 'pos' : ''}">${(r.pl * 100).toFixed(1)}</td><td class="num ${r.ps > r.pl ? 'neg' : ''}">${(r.ps * 100).toFixed(1)}</td>
+      <td><div class="meter"><span class="f" style="width:${pct(best)}%;background:${col}"></span>${thr != null ? `<span class="t" style="left:${pct(thr)}%"></span>` : ''}</div></td>
+      <td>${S.html}</td><td class="num">${(r.F.atr / pipOf(s)).toFixed(1)}</td><td>${tH} / ${tD}</td></tr>`;
+  }).join('');
+  $('#kSig').textContent = sig;
+}
+$('#rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-s]'); if (tr) { selected = tr.dataset.s; render(); showPair(selected, true); } });
+
+let chart, cs, es, lines = [];
+function ensureChart() {
+  if (chart || !window.LightweightCharts) return;
+  chart = LightweightCharts.createChart($('#chart'), { layout: { background: { color: 'transparent' }, textColor: '#8b98a8', fontFamily: 'IBM Plex Mono' },
+    grid: { vertLines: { color: '#1a2330' }, horzLines: { color: '#1a2330' } }, rightPriceScale: { borderColor: '#243040' }, timeScale: { borderColor: '#243040', timeVisible: true }, autoSize: true });
+  cs = chart.addCandlestickSeries({ upColor: '#2fbf71', downColor: '#ef5350', borderVisible: false, wickUpColor: '#2fbf71', wickDownColor: '#ef5350' });
+  es = chart.addLineSeries({ color: '#8a63d2', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+}
+async function showPair(s, fit) {
+  const r = st[s]; if (!r.F) return;
+  const best = Math.max(r.pl, r.ps), side = r.pl >= r.ps ? 1 : -1, d = dp(s), a = r.F.atr, e = r.price;
+  $('#dTitle').textContent = `${s.slice(0, 3)}/${s.slice(3)} · win chance ${(best * 100).toFixed(1)}% ${side > 0 ? 'long' : 'short'}`;
+  const sl = e - side * a, tp = e + side * 1.5 * a;
+  $('#levels').innerHTML = `<div class="lv"><div class="k">Entry (now)</div><div class="v">${e.toFixed(d)}</div></div>
+    <div class="lv"><div class="k">Stop −1 ATR</div><div class="v neg">${sl.toFixed(d)}</div><div class="k">${(a / pipOf(s)).toFixed(1)} pips</div></div>
+    <div class="lv"><div class="k">Target +1.5 ATR</div><div class="v pos">${tp.toFixed(d)}</div><div class="k">${(1.5 * a / pipOf(s)).toFixed(1)} pips</div></div>`;
+  const F = r.F, x = F.x, f1 = v => Number.isFinite(v) ? v.toFixed(2) : '–';
+  $('#why').innerHTML = [
+    ['Last closed H1 bar', new Date(F.t * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' + (r.roll ? ' (rollover hour, bot skips)' : '')],
+    ['Move last 24h / 120h (in ATRs)', `${f1(x[4])} / ${f1(x[6])}`], ['Price vs EMA 20 / 50 / 200 (ATRs)', `${f1(x[8])} / ${f1(x[10])} / ${f1(x[12])}`],
+    ['Ichimoku cloud position (ATRs)', f1(x[14])], ['RSI 14', f1(x[17])], ['Range position 20 / 100 bars', `${f1(x[18])} / ${f1(x[19])}`],
+    ['Daily trend vs EMA 200 (D1 ATRs)', f1(x[28])], ['Volatility now vs normal', f1(x[7]) + '×'],
+  ].map(([k, v]) => `<div class="row"><span class="k">${esc(k)}</span><span class="num">${esc(v)}</span></div>`).join('');
+  ensureChart(); if (!chart) return;
+  let B = r.H; if (tf !== 3600) { try { B = await candles(s, tf, 500); } catch (er) { B = r.H; } }
+  if (s !== selected) return;
+  const c = B.map(b => b.c), aE = 2 / 201; let ev = c[0];
+  cs.setData(B.map(b => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c })));
+  es.setData(B.map((b, i) => ({ time: b.t, value: (ev = i ? aE * b.c + (1 - aE) * ev : ev) })));
+  lines.forEach(l => cs.removePriceLine(l));
+  lines = [cs.createPriceLine({ price: tp, color: '#2fbf71', lineWidth: 1, lineStyle: 2, title: 'TP' }), cs.createPriceLine({ price: sl, color: '#ef5350', lineWidth: 1, lineStyle: 2, title: 'SL' })];
+  (BOT?.open || []).filter(o => o.sym === s).forEach(o => { lines.push(cs.createPriceLine({ price: o.entry, color: '#4aa3ff', lineWidth: 2, title: 'BOT ' + (o.side || '') }));
+    lines.push(cs.createPriceLine({ price: o.sl, color: '#ef5350', lineWidth: 2, title: 'bot SL' })); lines.push(cs.createPriceLine({ price: o.tp, color: '#2fbf71', lineWidth: 2, title: 'bot TP' })); });
+  if (fit) chart.timeScale().setVisibleLogicalRange({ from: B.length - 160, to: B.length + 5 });
+}
+document.querySelectorAll('#tfs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#tfs button').forEach(x => x.classList.toggle('on', x === b)); tf = +b.dataset.g; if (selected) showPair(selected, true); }));
+
+// ---------- bot data (same repo, updated hourly)
+async function loadBot() {
+  try {
+    const d = await fetch('../data.json?ts=' + Date.now()).then(r => r.json()); BOT = d.forex; thr = BOT.threshold;
+    $('#kThr').textContent = (thr * 100).toFixed(1) + '%';
+    const wk = (() => { const n = new Date(), t = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+      const y = t.getUTCFullYear(), w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7); return `${y}-W${String(w).padStart(2, '0')}`; })();
+    $('#kWeek').textContent = `${(BOT.week_count || {})[wk] || 0} / 10`;
+    $('#kBal').textContent = '$' + Number(BOT.balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    $('#kBalS').textContent = `${BOT.n_trades} closed · data ${d.built_utc} UTC`;
+    $('#botOpen').innerHTML = BOT.open.length ? '<div class="scroll"><table><tr><th>Pair</th><th>Side</th><th class="num">Entry</th><th class="num">SL</th><th class="num">TP</th><th class="num">Win%</th></tr>' +
+      BOT.open.map(o => `<tr><td class="mono">${esc(o.sym)}</td><td class="${o.side === 'SELL' ? 'neg' : 'pos'}">${esc(o.side)}</td><td class="num">${o.entry}</td><td class="num">${o.sl}</td><td class="num">${o.tp}</td><td class="num">${(o.pred * 100).toFixed(1)}</td></tr>`).join('') + '</table></div>'
+      : '<div class="empty">No open trades.</div>';
+    $('#botClosed').innerHTML = BOT.trades.length ? '<div class="scroll"><table><tr><th>Pair</th><th>Side</th><th>Exit (UTC)</th><th>Reason</th><th class="num">R</th><th class="num">$</th></tr>' +
+      BOT.trades.slice(0, 10).map(t => `<tr><td class="mono">${esc(t.symbol)}</td><td>${esc(t.side)}</td><td class="mono">${esc(t.exit_time_utc)}</td><td>${esc(t.exit_reason)}</td><td class="num ${+t.R_net >= 0 ? 'pos' : 'neg'}">${(+t.R_net).toFixed(2)}</td><td class="num ${+t.pnl_usd >= 0 ? 'pos' : 'neg'}">${(+t.pnl_usd).toFixed(2)}</td></tr>`).join('') + '</table></div>'
+      : '<div class="empty">No closed trades yet.</div>';
+    render();
+  } catch (e) { $('#kThr').textContent = '?'; }
+}
+$('#notify').addEventListener('click', async () => {
+  if (!('Notification' in window)) return;
+  if (!alertsOn && (await Notification.requestPermission()) === 'granted') alertsOn = true; else alertsOn = false;
+  $('#notify').textContent = alertsOn ? '🔔 Alerts on' : '🔔 Alerts off'; $('#notify').classList.toggle('on', alertsOn);
+});
+setInterval(() => { const n = new Date(), m = 59 - n.getUTCMinutes(), s = 59 - n.getUTCSeconds(); $('#nextBar').textContent = `next H1 close in ${m}:${String(s).padStart(2, '0')}`; }, 1000);
+(async () => {
+  MODEL = await fetch('model_v3.json').then(r => r.json());
+  await loadBot(); setStatus('Connecting to Deriv…', '');
+  await connect(); await refreshAll(); if (!selected) { selected = 'EURUSD'; render(); showPair('EURUSD', true); }
+  // refresh one minute after every H1 close, prices every 2 minutes, bot data every 10 minutes
+  setInterval(refreshAll, 2 * 60 * 1000); setInterval(loadBot, 10 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
