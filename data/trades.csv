@@ -1,0 +1,2 @@
+symbol,side,signal_bar_utc,entry_time_utc,entry,SL,TP,exit_time_utc,exit,exit_reason,bars_held,R_gross,cost_R,R_net,risk_usd,pnl_usd,balance_after,pred
+XAGUSD,BUY,2026-11-23 02:00,2026-11-23 03:00,41.5734,40.876221,42.619168,2026-11-23 06:00,42.619168,TP,3,1.5,0.05,1.45,25.0,36.24,10036.24,0.472
