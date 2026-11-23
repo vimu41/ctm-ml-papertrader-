@@ -1,6 +1,6 @@
 # CTM ML paper trading - live forward test
 
-Started 2026-11-10 04:10 UTC · last run 2026-11-23 15:07 UTC
+Started 2026-11-10 04:10 UTC · last run 2026-11-23 16:07 UTC
 
 | Metric | Value |
 |---|---|
@@ -10,7 +10,13 @@ Started 2026-11-10 04:10 UTC · last run 2026-11-23 15:07 UTC
 | Average R per trade | -0.331 (backtest: about +0.12) |
 | Total R | -1.33 |
 | Worst drawdown | -3.28 R |
-| Open trades | 0 |
+| Open trades | 1 |
+
+## Open trades
+
+| Symbol | Side | Entry (UTC) | Entry | SL | TP | Pred |
+|---|---|---|---|---|---|---|
+| AUDUSD | BUY | 2026-11-23 16:00 | 0.66211 | 0.66060 | 0.66512 | 0.145 |
 
 ## Last 20 closed trades
 
