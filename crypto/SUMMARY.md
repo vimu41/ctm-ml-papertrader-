@@ -1,6 +1,6 @@
 # CTM crypto paper trading (experimental)
 
-Started 2026-11-15 18:50 UTC · last run 2026-11-23 16:09 UTC
+Started 2026-11-15 18:50 UTC · last run 2026-11-23 17:07 UTC
 
 | Metric | Value |
 |---|---|
