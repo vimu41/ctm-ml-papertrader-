@@ -1,6 +1,6 @@
 # CTM ML v3 paper trading - live forward test (risk 1 ATR, target 1.5 ATR)
 
-Started 2026-11-10 04:10 UTC · last run 2026-11-23 03:07 UTC
+Started 2026-11-10 04:10 UTC · last run 2026-11-23 04:07 UTC
 
 | Metric | Value |
 |---|---|
@@ -10,7 +10,7 @@ Started 2026-11-10 04:10 UTC · last run 2026-11-23 03:07 UTC
 | Average R per trade | - |
 | Total R | +0.00 |
 | Worst drawdown | 0.00 R |
-| Open trades | 2 |
+| Open trades | 3 |
 
 ## Open trades
 
@@ -18,6 +18,7 @@ Started 2026-11-10 04:10 UTC · last run 2026-11-23 03:07 UTC
 |---|---|---|---|---|---|---|
 | AUDJPY | BUY | 2026-11-23 01:00 | 105.631 | 105.27493 | 106.16511 | 0.469 |
 | XAGUSD | BUY | 2026-11-23 03:00 | 41.5734 | 40.87622 | 42.61917 | 0.472 |
+| AUDUSD | BUY | 2026-11-23 04:00 | 0.66352 | 0.66207 | 0.66569 | 0.466 |
 
 
 Full journal: `data/trades.csv` · every signal: `data/signals.csv`. Paper trades on Deriv public prices, spread deducted; no real or demo orders are placed.
