@@ -1,0 +1,2 @@
+symbol,side,signal_bar_utc,entry_time_utc,entry,SL,TP,exit_time_utc,exit,exit_reason,bars_held,R_gross,cost_R,R_net,risk_usd,pnl_usd,balance_after,pred
+AUDUSD,BUY,2026-11-23 00:00,2026-11-23 01:00,0.6647,0.663236,0.667629,2026-11-23 03:00,0.663236,SL,2,-1.0,0.102,-1.102,25.0,-27.56,9972.44,0.1
