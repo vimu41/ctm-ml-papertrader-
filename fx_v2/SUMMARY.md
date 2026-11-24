@@ -1,27 +1,22 @@
 # CTM ML paper trading - live forward test
 
-Started 2026-11-10 04:10 UTC · last run 2026-11-24 14:07 UTC
+Started 2026-11-10 04:10 UTC · last run 2026-11-24 15:07 UTC
 
 | Metric | Value |
 |---|---|
-| Paper balance | $9,966.79 (start $10,000) |
-| Closed trades | 4 |
-| Win rate | 25% |
-| Average R per trade | -0.331 (backtest: about +0.12) |
-| Total R | -1.33 |
+| Paper balance | $10,014.15 (start $10,000) |
+| Closed trades | 5 |
+| Win rate | 40% |
+| Average R per trade | +0.115 (backtest: about +0.12) |
+| Total R | +0.57 |
 | Worst drawdown | -3.28 R |
-| Open trades | 1 |
-
-## Open trades
-
-| Symbol | Side | Entry (UTC) | Entry | SL | TP | Pred |
-|---|---|---|---|---|---|---|
-| AUDUSD | BUY | 2026-11-23 16:00 | 0.66211 | 0.66060 | 0.66512 | 0.145 |
+| Open trades | 0 |
 
 ## Last 20 closed trades
 
 | Symbol | Side | Entry (UTC) | Exit (UTC) | Reason | R | $ |
 |---|---|---|---|---|---|---|
+| AUDUSD | BUY | 2026-11-23 16:00 | 2026-11-24 15:00 | TP | 1.9 | 47.36 |
 | XAGUSD | BUY | 2026-11-23 03:00 | 2026-11-23 14:00 | TP | 1.95 | 48.61 |
 | AUDJPY | BUY | 2026-11-23 01:00 | 2026-11-23 13:00 | SL | -1.07 | -26.76 |
 | AUDUSD | BUY | 2026-11-23 03:00 | 2026-11-23 13:00 | SL | -1.103 | -27.5 |
