@@ -42,6 +42,10 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
 .pill.sig{color:#0b0f14;background:var(--buy);border-color:var(--buy);font-weight:600}.pill.sig.s{background:var(--sell);border-color:var(--sell)}
 .pill.near{color:var(--warn);border-color:#6b5320}.pill.roll{color:var(--faint)}
 #chart{height:340px}
+.chk{display:inline-flex;gap:3px}.chk i{width:10px;height:10px;border-radius:2px;background:#26323f;display:inline-block}.chk i.ok{background:var(--buy)}.chk i.bad{background:var(--sell)}
+.ck{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start;font-size:13px;padding:4px 0;border-bottom:1px dashed #1d2734}
+.ck .ic{width:14px;height:14px;border-radius:3px;margin-top:3px;background:#26323f}.ck .ic.ok{background:var(--buy)}.ck .ic.bad{background:var(--sell)}
+.ck small{display:block;color:var(--faint);font:12px "IBM Plex Mono",monospace}
 .row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed #1d2734;padding:5px 0;font-size:13px}
 .row .k{color:var(--mute)}
 .levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
@@ -60,6 +64,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
   <span class="meta"><span class="dot" id="dot"></span><span id="status">Loading model…</span></span>
   <div class="controls">
     <span class="meta" id="nextBar"></span>
+    <select id="minPips" aria-label="Minimum target in pips"><option value="50" selected>Target ≥ 50 pips</option><option value="30">Target ≥ 30 pips</option><option value="0">All targets</option></select>
     <button id="notify" title="Browser alert when a pair reaches the threshold">🔔 Alerts off</button>
     <a class="meta" href="../">Bot dashboard</a>
   </div>
@@ -75,11 +80,14 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
     <div class="card">
       <h2>All pairs · last closed H1 bar · risk 1×ATR, target 1.5×ATR</h2>
       <div class="scroll"><table>
-        <thead><tr><th>Pair</th><th class="num">Price</th><th class="num">Win% long</th><th class="num">Win% short</th><th>vs threshold</th><th>Status</th><th class="num">ATR (pips)</th><th>Trend H1 / D1</th></tr></thead>
-        <tbody id="rows"><tr><td colspan="8" class="empty">Loading prices from Deriv…</td></tr></tbody>
+        <thead><tr><th>Pair</th><th class="num">Price</th><th class="num">Win% long</th><th class="num">Win% short</th><th>vs threshold</th><th>Status</th><th>Checklist</th><th class="num">Target (pips)</th><th class="num">ATR (pips)</th><th>Trend H1 / D1</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="10" class="empty">Loading prices from Deriv…</td></tr></tbody>
       </table></div>
+      <div class="legend" id="hiddenNote"></div>
       <div class="legend"><span><i style="background:var(--warn)"></i>threshold</span><span>Coin-toss win rate at 1.5:1 ≈ 39%. Backtest of this exact rule: ~3 trades/week, 47% win.</span></div>
     </div>
+    <div class="card" style="margin-top:12px"><h2>Signals now</h2><div id="liveSig"><div class="empty">–</div></div></div>
+    <div class="card" style="margin-top:12px"><h2>Signals the bot took</h2><div id="taken"><div class="empty">–</div></div></div>
   </section>
   <section style="display:grid;gap:12px;align-content:start">
     <div class="card">
@@ -91,6 +99,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
       <div class="legend"><span><i style="background:#8a63d2"></i>EMA 200</span><span><i style="background:var(--buy)"></i>target</span><span><i style="background:var(--sell)"></i>stop</span><span>Signal is H1 only; other timeframes are for viewing the entry.</span></div>
       <div class="levels" id="levels"></div>
     </div>
+    <div class="card"><h2 id="ckTitle">Checklist</h2><div id="checks"><div class="empty">–</div></div></div>
     <div class="card"><h2>Why (model inputs)</h2><div id="why"><div class="empty">–</div></div></div>
     <div class="card"><h2>Bot: open trades</h2><div id="botOpen"><div class="empty">–</div></div></div>
     <div class="card"><h2>Bot: recent closed trades</h2><div id="botClosed"><div class="empty">–</div></div></div>
@@ -184,12 +193,29 @@ function statusOf(r) {
   if (best >= thr - 0.015) return { html: '<span class="pill near">near</span>', sig: false };
   return { html: '<span class="pill">wait</span>', sig: false };
 }
+const minPips = () => +$('#minPips').value;
+const tpPips = (s, r) => 1.5 * r.F.atr / pipOf(s);
+function checklist(s, r) {
+  const long = r.pl >= r.ps, best = Math.max(r.pl, r.ps), x = r.F.x, hr = new Date(r.F.t * 1000).getUTCHours();
+  const trendH1 = long ? (r.F.close > r.F.em[200] && r.F.em[50] > r.F.em[200]) : (r.F.close < r.F.em[200] && r.F.em[50] < r.F.em[200]);
+  const items = [
+    { n: 'Win chance at or above threshold', ok: thr != null && best >= thr, i: `${(best * 100).toFixed(1)}% vs ${thr != null ? (thr * 100).toFixed(1) + '%' : '–'}` },
+    { n: `Trend H1 agrees (${long ? 'price > EMA50 > EMA200' : 'price < EMA50 < EMA200'})`, ok: trendH1, i: trendH1 ? 'with trend' : 'against / mixed' },
+    { n: 'Trend D1 agrees (price vs EMA200 daily)', ok: r.F.d1 != null && (long ? r.F.d1 > 0 : r.F.d1 < 0), i: r.F.d1 == null ? 'n/a' : (r.F.d1 > 0 ? 'daily up' : 'daily down') },
+    { n: 'Momentum 24h with the trade', ok: long ? x[4] > 0 : x[4] < 0, i: `${x[4].toFixed(2)} ATR` },
+    { n: `RSI not stretched against (${long ? '< 70' : '> 30'})`, ok: Number.isFinite(x[17]) && (long ? x[17] < 70 : x[17] > 30), i: 'RSI ' + (Number.isFinite(x[17]) ? x[17].toFixed(1) : '–') },
+    { n: 'London / New York hours, not rollover', ok: hr >= 7 && hr <= 17, i: `${hr}:00 UTC bar` + (r.roll ? ' (rollover)' : '') },
+    { n: `Target at least ${minPips() || 50} pips`, ok: tpPips(s, r) >= (minPips() || 50), i: tpPips(s, r).toFixed(0) + ' pips' },
+  ];
+  return { items, side: long ? 'BUY' : 'SELL', score: items.filter(k => k.ok).length };
+}
 function render() {
-  let sig = 0;
+  let sig = 0, hidden = 0; const live = [];
   $('#rows').innerHTML = SY.map(s => {
     const r = st[s], name = s.slice(0, 3) + '/' + s.slice(3);
-    if (!r.F) return `<tr data-s="${s}"><td class="mono">${name}</td><td colspan="7" class="dim">${esc(r.err || 'loading…')}</td></tr>`;
-    const best = Math.max(r.pl, r.ps), S = statusOf(r); if (S.sig) sig++;
+    if (!r.F) return `<tr data-s="${s}"><td class="mono">${name}</td><td colspan="9" class="dim">${esc(r.err || 'loading…')}</td></tr>`;
+    if (tpPips(s, r) < minPips()) { hidden++; return ''; }
+    const best = Math.max(r.pl, r.ps), S = statusOf(r), C = checklist(s, r); if (S.sig) { sig++; live.push({ s, r, C, best }); }
     const lo = 0.30, hi = 0.55, pct = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
     const col = best >= (thr ?? 1) ? (r.pl >= r.ps ? 'var(--buy)' : 'var(--sell)') : '#3b4b60';
     const tH = r.F.close > r.F.em[200] ? '<span class="pos">▲</span>' : '<span class="neg">▼</span>';
@@ -198,9 +224,21 @@ function render() {
     return `<tr data-s="${s}" class="${s === selected ? 'sel' : ''}"><td class="mono">${name}</td><td class="num">${r.price.toFixed(dp(s))}</td>
       <td class="num ${r.pl >= r.ps ? 'pos' : ''}">${(r.pl * 100).toFixed(1)}</td><td class="num ${r.ps > r.pl ? 'neg' : ''}">${(r.ps * 100).toFixed(1)}</td>
       <td><div class="meter"><span class="f" style="width:${pct(best)}%;background:${col}"></span>${thr != null ? `<span class="t" style="left:${pct(thr)}%"></span>` : ''}</div></td>
-      <td>${S.html}</td><td class="num">${(r.F.atr / pipOf(s)).toFixed(1)}</td><td>${tH} / ${tD}</td></tr>`;
-  }).join('');
+      <td>${S.html}</td><td><span class="chk" title="${C.score}/7 for ${C.side}">${C.items.map(k => `<i class="${k.ok ? 'ok' : 'bad'}" title="${esc(k.n)}: ${esc(k.i)}"></i>`).join('')}</span> <span class="dim mono">${C.score}/7</span></td>
+      <td class="num">${tpPips(s, r).toFixed(0)}</td><td class="num">${(r.F.atr / pipOf(s)).toFixed(1)}</td><td>${tH} / ${tD}</td></tr>`;
+  }).join('') || `<tr><td colspan="10" class="empty">No pair has a target of ${minPips()}+ pips right now. Choose a lower minimum above.</td></tr>`;
   $('#kSig').textContent = sig;
+  $('#hiddenNote').textContent = hidden ? `${hidden} pair(s) hidden: H1 target under ${minPips()} pips` : '';
+  $('#liveSig').innerHTML = live.length ? live.map(({ s, r, C, best }) => { const e = r.price, a = r.F.atr, sd = C.side === 'BUY' ? 1 : -1, d = dp(s);
+    return `<div class="row"><span><b class="${sd > 0 ? 'pos' : 'neg'}">${C.side}</b> <span class="mono">${s}</span> · ${(best * 100).toFixed(1)}% · ${C.score}/7</span><span class="num">E ${e.toFixed(d)} · SL ${(e - sd * a).toFixed(d)} · TP ${(e + sd * 1.5 * a).toFixed(d)}</span></div>`; }).join('')
+    : '<div class="empty">No pair at the threshold right now. The bot checks every closed H1 bar.</div>';
+  if (selected && st[selected] && st[selected].F) showChecks(selected);
+}
+function showChecks(s) {
+  const r = st[s], C = checklist(s, r);
+  $('#ckTitle').textContent = `Checklist · ${s} ${C.side} · ${C.score}/7`;
+  $('#checks').innerHTML = C.items.map(k => `<div class="ck"><span class="ic ${k.ok ? 'ok' : 'bad'}"></span><div>${esc(k.n)}<small>${esc(k.i)}</small></div></div>`).join('') +
+    '<p class="note" style="margin-top:8px">The bot trades on the first item (win chance) only; the other checks are extra confirmation for you.</p>';
 }
 $('#rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-s]'); if (tr) { selected = tr.dataset.s; render(); showPair(selected, true); } });
 
@@ -213,7 +251,7 @@ function ensureChart() {
   es = chart.addLineSeries({ color: '#8a63d2', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 }
 async function showPair(s, fit) {
-  const r = st[s]; if (!r.F) return;
+  const r = st[s]; if (!r.F) return; showChecks(s);
   const best = Math.max(r.pl, r.ps), side = r.pl >= r.ps ? 1 : -1, d = dp(s), a = r.F.atr, e = r.price;
   $('#dTitle').textContent = `${s.slice(0, 3)}/${s.slice(3)} · win chance ${(best * 100).toFixed(1)}% ${side > 0 ? 'long' : 'short'}`;
   const sl = e - side * a, tp = e + side * 1.5 * a;
@@ -243,6 +281,18 @@ document.querySelectorAll('#tfs button').forEach(b => b.addEventListener('click'
   document.querySelectorAll('#tfs button').forEach(x => x.classList.toggle('on', x === b)); tf = +b.dataset.g; if (selected) showPair(selected, true); }));
 
 // ---------- bot data (same repo, updated hourly)
+function renderTaken() {
+  if (!BOT) return;
+  const pip = s => pipOf(s), rows = [];
+  (BOT.open || []).forEach(o => rows.push({ sym: o.sym, side: o.side, t: new Date(o.entry_t * 1000).toISOString().slice(0, 16).replace('T', ' '), entry: +o.entry, sl: +o.sl, tp: +o.tp, p: o.pred, res: 'OPEN', r: null }));
+  (BOT.trades || []).forEach(t => rows.push({ sym: t.symbol, side: t.side, t: t.entry_time_utc, entry: +t.entry, sl: +t.SL, tp: +t.TP, p: +t.pred, res: t.exit_reason, r: +t.R_net, usd: +t.pnl_usd }));
+  rows.sort((p, q) => q.t.localeCompare(p.t));
+  const mp = minPips(), shown = rows.filter(x => Math.abs(x.tp - x.entry) / pip(x.sym) >= mp), hid = rows.length - shown.length;
+  $('#taken').innerHTML = (shown.length ? '<div class="scroll"><table><tr><th>Entry (UTC)</th><th>Pair</th><th>Side</th><th class="num">Win%</th><th class="num">Target pips</th><th>Result</th><th class="num">$</th></tr>' +
+    shown.slice(0, 20).map(x => `<tr><td class="mono">${esc(x.t)}</td><td class="mono">${esc(x.sym)}</td><td class="${x.side === 'SELL' ? 'neg' : 'pos'}">${esc(x.side)}</td><td class="num">${(x.p * 100).toFixed(1)}</td>
+      <td class="num">${(Math.abs(x.tp - x.entry) / pip(x.sym)).toFixed(0)}</td><td class="${x.res === 'TP' ? 'pos' : x.res === 'SL' ? 'neg' : 'warn'}">${esc(x.res)}${x.r != null ? ` (${x.r >= 0 ? '+' : ''}${x.r.toFixed(2)}R)` : ''}</td><td class="num ${x.usd >= 0 ? 'pos' : 'neg'}">${x.usd != null ? x.usd.toFixed(2) : '–'}</td></tr>`).join('') + '</table></div>'
+    : '<div class="empty">No bot signal with this target size yet.</div>') + (hid ? `<p class="note">${hid} smaller-target trade(s) hidden by the pips filter.</p>` : '');
+}
 async function loadBot() {
   try {
     const d = await fetch('../data.json?ts=' + Date.now()).then(r => r.json()); BOT = d.forex; thr = BOT.threshold;
@@ -258,9 +308,10 @@ async function loadBot() {
     $('#botClosed').innerHTML = BOT.trades.length ? '<div class="scroll"><table><tr><th>Pair</th><th>Side</th><th>Exit (UTC)</th><th>Reason</th><th class="num">R</th><th class="num">$</th></tr>' +
       BOT.trades.slice(0, 10).map(t => `<tr><td class="mono">${esc(t.symbol)}</td><td>${esc(t.side)}</td><td class="mono">${esc(t.exit_time_utc)}</td><td>${esc(t.exit_reason)}</td><td class="num ${+t.R_net >= 0 ? 'pos' : 'neg'}">${(+t.R_net).toFixed(2)}</td><td class="num ${+t.pnl_usd >= 0 ? 'pos' : 'neg'}">${(+t.pnl_usd).toFixed(2)}</td></tr>`).join('') + '</table></div>'
       : '<div class="empty">No closed trades yet.</div>';
-    render();
+    render(); renderTaken();
   } catch (e) { $('#kThr').textContent = '?'; }
 }
+$('#minPips').addEventListener('change', () => { render(); renderTaken(); });
 $('#notify').addEventListener('click', async () => {
   if (!('Notification' in window)) return;
   if (!alertsOn && (await Notification.requestPermission()) === 'granted') alertsOn = true; else alertsOn = false;
