@@ -180,7 +180,7 @@ async function refreshAll() {
   setStatus('Updating…', '');
   for (const s of SY) { await loadPair(s); render(); }
   setStatus('Live · Deriv feed · ' + new Date().toLocaleTimeString(), 'live');
-  if (!selected) { selected = SY.find(x => st[x].F) || 'EURUSD'; render(); showPair(selected, true); } else showPair(selected, false);
+  if (!selected) { selected = SY.find(x => st[x].F && tpPips(x, st[x]) >= minPips()) || SY.find(x => st[x].F) || 'EURUSD'; render(); showPair(selected, true); } else showPair(selected, false);
 }
 function setStatus(t, c) { $('#status').textContent = t; $('#dot').className = 'dot ' + c; }
 
