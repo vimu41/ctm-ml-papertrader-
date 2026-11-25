@@ -30,6 +30,12 @@ jobs:
           git add site/data.json
           git diff --cached --quiet || git commit -m "dashboard data $(date -u +'%Y-%m-%d %H:%M')"
           git pull --rebase && git push
+      - name: Economic calendar (high-impact news, info for the desk only)
+        run: |
+          curl -fsSL --retry 2 -A "Mozilla/5.0" https://nfs.faireconomy.media/ff_calendar_thisweek.json -o /tmp/news.json \
+            && python -c "import json;d=json.load(open('/tmp/news.json'));assert isinstance(d,list)" \
+            && cp /tmp/news.json site/news.json || echo '[]' > site/news.json
+          python -c "import json;print(len(json.load(open('site/news.json'))),'events')"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -58,6 +58,9 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
 .legend i{display:inline-block;width:12px;height:3px;margin-right:5px;vertical-align:middle}
 .ic.info{background:#4aa3ff}.smch{font:600 12px "IBM Plex Mono",monospace;color:var(--mute);margin:10px 0 2px;text-transform:uppercase;letter-spacing:.04em}
 .tgl{font-size:12px;color:var(--mute);margin-left:auto;display:flex;align-items:center;gap:4px}
+.sidebig{display:inline-block;font:700 13px "IBM Plex Mono",monospace;padding:2px 8px;border-radius:4px;margin-right:6px;color:#0b0f14}
+.sidebig.b{background:var(--buy)}.sidebig.s{background:var(--sell)}.sidebig.w{background:#3b4b60;color:#cfd8e3}
+.newsflag{color:var(--warn);font-size:11px;margin-left:4px}
 </style>
 </head>
 <body>
@@ -76,6 +79,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
     <div class="kpis">
       <div class="card kpi"><h2>Threshold</h2><div class="v" id="kThr">–</div><div class="s">win chance needed (top 0.5%, 14 days)</div></div>
       <div class="card kpi"><h2>Trades this week</h2><div class="v" id="kWeek">–</div><div class="s">cap 10 a week</div></div>
+      <div class="card kpi"><h2>Next high-impact news</h2><div class="v" id="kNews">–</div><div class="s" id="kNewsS">ForexFactory calendar</div></div>
       <div class="card kpi"><h2>Signals now</h2><div class="v" id="kSig">–</div><div class="s">pairs at or above threshold</div></div>
       <div class="card kpi"><h2>Paper balance</h2><div class="v" id="kBal">–</div><div class="s" id="kBalS">bot journal</div></div>
     </div>
@@ -158,6 +162,25 @@ const prob = (M, x) => 1 / (1 + Math.exp(-E.predict(M, x)));
 const pipOf = s => /JPY/.test(s) ? 0.01 : s === 'XAUUSD' ? 0.1 : s === 'XAGUSD' ? 0.01 : 0.0001;
 const dp = s => /JPY/.test(s) ? 3 : s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 5;
 
+// ---------- news (high-impact events, refreshed hourly by the dashboard job; info only, the bot ignores it)
+let NEWS = [];
+const curOf = s => /^X(AU|AG)/.test(s) ? ['USD'] : [s.slice(0, 3), s.slice(3)];
+const fmtIn = sec => { const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${h}h ${String(m).padStart(2, '0')}m`; };
+const nextNews = s => { const now = Date.now() / 1000, cs = s ? curOf(s) : null;
+  return NEWS.filter(e => e.t > now - 1800 && (!cs || cs.includes(e.c))).sort((a, b) => a.t - b.t)[0] || null; };
+async function loadNews() {
+  try { const d = await fetch('../news.json?ts=' + Date.now()).then(r => r.json());
+    NEWS = (Array.isArray(d) ? d : []).filter(e => e.impact === 'High').map(e => ({ t: Date.parse(e.date) / 1000, c: e.country, n: e.title, f: e.forecast, p: e.previous }))
+      .filter(e => Number.isFinite(e.t)); } catch (e) { NEWS = []; }
+  showNewsKpi();
+}
+function showNewsKpi() {
+  const e = nextNews(null), now = Date.now() / 1000;
+  if (!e) { $('#kNews').textContent = NEWS.length ? 'none left' : '–'; $('#kNewsS').textContent = NEWS.length ? 'this week' : 'calendar not loaded yet'; return; }
+  $('#kNews').innerHTML = e.t <= now ? '<span class="warn">NOW</span>' : `<span class="${e.t - now < 7200 ? 'warn' : ''}">${fmtIn(e.t - now)}</span>`;
+  $('#kNewsS').textContent = `${e.c} · ${e.n}`;
+}
+
 // ---------- SMC context (chart + checklist info only; backtest showed it does not improve the model)
 function smc(H, D, atr) {
   const n = H.length, i = n - 1, SW = 48; if (n < SW + 10) return null;
@@ -194,7 +217,10 @@ function smcChecks(s, r, long) {
   const inOTE = long ? (Z.up && Z.retr >= 0.62 && Z.retr <= 0.79) : (!Z.up && Z.retr >= 0.62 && Z.retr <= 0.79);
   const poi = long ? [Z.bob, Z.bfvg].filter(z => z && c - z.hi <= a && c >= z.lo) : [Z.beb, Z.sfvg].filter(z => z && z.lo - c <= a && c <= z.hi);
   const block = long ? [Z.pdh, Z.eqh ? Z.hh : null].filter(v => v != null && v > c && v < tp) : [Z.pdl, Z.eql ? Z.ll : null].filter(v => v != null && v < c && v > tp);
-  return [
+  const nw = nextNews(s), now = Date.now() / 1000;
+  const newsItem = { n: 'No high-impact news for this pair in the next 2 hours', ok: !nw || nw.t - now > 7200,
+    i: nw ? `${nw.c} ${nw.n} in ${nw.t <= now ? 'NOW' : fmtIn(nw.t - now)}` + (nw.f ? ` · forecast ${nw.f}` : '') : (NEWS.length ? 'nothing this week' : 'calendar not loaded') };
+  return [newsItem,
     { n: `Price in OTE zone (62–79% of last ${Z.up ? 'up' : 'down'} swing)`, ok: inOTE, i: `retracement ${(Z.retr * 100).toFixed(0)}% · zone ${f(Math.min(...Z.ote))}–${f(Math.max(...Z.ote))}` },
     { n: `Liquidity swept ${long ? 'below (sell-side)' : 'above (buy-side)'} in last 3 bars`, ok: long ? Z.sweepL : Z.sweepH, i: `PDH ${f(Z.pdh)} · PDL ${f(Z.pdl)}` },
     { n: `At a ${long ? 'bullish' : 'bearish'} POI (order block or FVG within 1 ATR)`, ok: poi.length > 0, i: poi.length ? poi.map(z => `${f(z.lo)}–${f(z.hi)}`).join(' · ') : 'none close' },
@@ -270,7 +296,8 @@ function render() {
     const tH = r.F.close > r.F.em[200] ? '<span class="pos">▲</span>' : '<span class="neg">▼</span>';
     const tD = r.F.d1 == null ? '–' : r.F.d1 > 0 ? '<span class="pos">▲</span>' : '<span class="neg">▼</span>';
     if (S.sig && alertsOn && alerted[s] !== r.F.t) { alerted[s] = r.F.t; new Notification(`CTM v3: ${S.side} ${name}`, { body: `Win chance ${(best * 100).toFixed(1)}% ≥ ${(thr * 100).toFixed(1)}%` }); }
-    return `<tr data-s="${s}" class="${s === selected ? 'sel' : ''}"><td class="mono">${name}</td><td class="num">${r.price.toFixed(dp(s))}</td>
+    const nw = nextNews(s), soon = nw && nw.t - Date.now() / 1000 < 7200;
+    return `<tr data-s="${s}" class="${s === selected ? 'sel' : ''}"><td class="mono">${name}${soon ? `<span class="newsflag" title="${esc(nw.c + ' ' + nw.n)}">⚠ news</span>` : ''}</td><td class="num">${r.price.toFixed(dp(s))}</td>
       <td class="num ${r.pl >= r.ps ? 'pos' : ''}">${(r.pl * 100).toFixed(1)}</td><td class="num ${r.ps > r.pl ? 'neg' : ''}">${(r.ps * 100).toFixed(1)}</td>
       <td><div class="meter"><span class="f" style="width:${pct(best)}%;background:${col}"></span>${thr != null ? `<span class="t" style="left:${pct(thr)}%"></span>` : ''}</div></td>
       <td>${S.html}</td><td><span class="chk" title="${C.score}/7 for ${C.side}">${C.items.map(k => `<i class="${k.ok ? 'ok' : 'bad'}" title="${esc(k.n)}: ${esc(k.i)}"></i>`).join('')}</span> <span class="dim mono">${C.score}/7</span></td>
@@ -279,17 +306,17 @@ function render() {
   $('#kSig').textContent = sig;
   $('#hiddenNote').textContent = hidden ? `${hidden} pair(s) hidden: H1 target under ${minPips()} pips` : '';
   $('#liveSig').innerHTML = live.length ? live.map(({ s, r, C, best }) => { const e = r.price, a = r.F.atr, sd = C.side === 'BUY' ? 1 : -1, d = dp(s);
-    return `<div class="row"><span><b class="${sd > 0 ? 'pos' : 'neg'}">${C.side}</b> <span class="mono">${s}</span> · ${(best * 100).toFixed(1)}% · ${C.score}/7</span><span class="num">E ${e.toFixed(d)} · SL ${(e - sd * a).toFixed(d)} · TP ${(e + sd * 1.5 * a).toFixed(d)}</span></div>`; }).join('')
+    return `<div class="row"><span><b class="${sd > 0 ? 'pos' : 'neg'}">${C.side}</b> <span class="mono">${s}</span> · ${(best * 100).toFixed(1)}% · ${C.score}/7</span><span class="num">E ${e.toFixed(d)} · SL ${(e - sd * a).toFixed(d)} (−${(a / pipOf(s)).toFixed(0)}p) · TP ${(e + sd * 1.5 * a).toFixed(d)} (+${(1.5 * a / pipOf(s)).toFixed(0)}p)</span></div>`; }).join('')
     : '<div class="empty">No pair at the threshold right now. The bot checks every closed H1 bar.</div>';
   if (selected && st[selected] && st[selected].F) showChecks(selected);
 }
 function showChecks(s) {
   const r = st[s], C = checklist(s, r);
   $('#ckTitle').textContent = `Checklist · ${s} ${C.side} · ${C.score}/7`;
-  const Sm = smcChecks(s, r, C.side === 'BUY'), sOk = Sm.filter(k => k.ok).length;
+  const Sm = smcChecks(s, r, C.side === 'BUY');
   const row = (k, cls) => `<div class="ck"><span class="ic ${cls}"></span><div>${esc(k.n)}<small>${esc(k.i)}</small></div></div>`;
   $('#checks').innerHTML = C.items.map(k => row(k, k.ok ? 'ok' : 'bad')).join('') +
-    (Sm.length ? `<div class="smch">SMC context · ${sOk}/${Sm.length} (info, not scored)</div>` + Sm.map(k => row(k, k.ok ? 'info' : '')).join('') : '') +
+    (Sm.length ? `<div class="smch">News</div>` + row(Sm[0], Sm[0].ok ? 'ok' : 'bad') + ($('#smcOn').checked ? `<div class="smch">SMC context · ${Sm.slice(1).filter(k => k.ok).length}/${Sm.length - 1} (info, not scored)</div>` + Sm.slice(1).map(k => row(k, k.ok ? 'info' : '')).join('') : '') : '') +
     '<p class="note" style="margin-top:8px">The bot trades on the first item (win chance) only; the other checks are extra confirmation for you. SMC items are context: in the 2021–2026 backtest, adding them to the model lowered the win rate (50% → 45% on 50+ pip targets).</p>';
 }
 $('#rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-s]'); if (tr) { selected = tr.dataset.s; render(); showPair(selected, true); } });
@@ -305,9 +332,10 @@ function ensureChart() {
 async function showPair(s, fit) {
   const r = st[s]; if (!r.F) return; showChecks(s);
   const best = Math.max(r.pl, r.ps), side = r.pl >= r.ps ? 1 : -1, d = dp(s), a = r.F.atr, e = r.price;
-  $('#dTitle').textContent = `${s.slice(0, 3)}/${s.slice(3)} · win chance ${(best * 100).toFixed(1)}% ${side > 0 ? 'long' : 'short'}`;
+  const sig = thr != null && best >= thr && !r.roll, sd = side > 0 ? 'BUY' : 'SELL';
+  $('#dTitle').innerHTML = `<span class="sidebig ${sig ? (side > 0 ? 'b' : 's') : 'w'}">${sig ? sd + ' SIGNAL' : 'leans ' + sd + ' · wait'}</span>${s.slice(0, 3)}/${s.slice(3)} · win chance ${(best * 100).toFixed(1)}%` + (thr != null ? ` (needs ${(thr * 100).toFixed(1)}%)` : '');
   const sl = e - side * a, tp = e + side * 1.5 * a;
-  $('#levels').innerHTML = `<div class="lv"><div class="k">Entry (now)</div><div class="v">${e.toFixed(d)}</div></div>
+  $('#levels').innerHTML = `<div class="lv"><div class="k">${sd} entry (now)</div><div class="v">${e.toFixed(d)}</div></div>
     <div class="lv"><div class="k">Stop −1 ATR</div><div class="v neg">${sl.toFixed(d)}</div><div class="k">${(a / pipOf(s)).toFixed(1)} pips</div></div>
     <div class="lv"><div class="k">Target +1.5 ATR</div><div class="v pos">${tp.toFixed(d)}</div><div class="k">${(1.5 * a / pipOf(s)).toFixed(1)} pips</div></div>`;
   const F = r.F, x = F.x, f1 = v => Number.isFinite(v) ? v.toFixed(2) : '–';
@@ -324,9 +352,19 @@ async function showPair(s, fit) {
   cs.setData(B.map(b => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c })));
   es.setData(B.map((b, i) => ({ time: b.t, value: (ev = i ? aE * b.c + (1 - aE) * ev : ev) })));
   lines.forEach(l => cs.removePriceLine(l));
-  lines = [cs.createPriceLine({ price: tp, color: '#2fbf71', lineWidth: 1, lineStyle: 2, title: 'TP' }), cs.createPriceLine({ price: sl, color: '#ef5350', lineWidth: 1, lineStyle: 2, title: 'SL' })];
-  (BOT?.open || []).filter(o => o.sym === s).forEach(o => { lines.push(cs.createPriceLine({ price: o.entry, color: '#4aa3ff', lineWidth: 2, title: 'BOT ' + (o.side || '') }));
-    lines.push(cs.createPriceLine({ price: o.sl, color: '#ef5350', lineWidth: 2, title: 'bot SL' })); lines.push(cs.createPriceLine({ price: o.tp, color: '#2fbf71', lineWidth: 2, title: 'bot TP' })); });
+  const pp = v => (Math.abs(v) / pipOf(s)).toFixed(0) + 'p';
+  lines = [cs.createPriceLine({ price: e, color: side > 0 ? '#2fbf71' : '#ef5350', lineWidth: 1, lineStyle: 0, title: `${sd} ${sig ? 'SIGNAL' : '(wait)'}` }),
+    cs.createPriceLine({ price: tp, color: '#2fbf71', lineWidth: 1, lineStyle: 2, title: `TP +${pp(tp - e)}` }), cs.createPriceLine({ price: sl, color: '#ef5350', lineWidth: 1, lineStyle: 2, title: `SL −${pp(sl - e)}` })];
+  (BOT?.open || []).filter(o => o.sym === s).forEach(o => { lines.push(cs.createPriceLine({ price: +o.entry, color: '#4aa3ff', lineWidth: 2, title: 'BOT ' + (o.side || '') }));
+    lines.push(cs.createPriceLine({ price: +o.sl, color: '#ef5350', lineWidth: 2, title: `bot SL −${pp(o.sl - o.entry)}` })); lines.push(cs.createPriceLine({ price: +o.tp, color: '#2fbf71', lineWidth: 2, title: `bot TP +${pp(o.tp - o.entry)}` })); });
+  // arrows: now (last bar) + every bot trade on this pair
+  const snap = t => { let lo = 0, hi = B.length - 1; if (t < B[0].t) return null; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (B[m].t <= t) lo = m; else hi = m - 1; } return B[lo].t; };
+  const mk = [], ut = str => Date.parse(String(str).replace(' ', 'T') + ':00Z') / 1000;
+  const arrow = (t, buy, text, strong) => { const tt = snap(t); if (tt != null) mk.push({ time: tt, position: buy ? 'belowBar' : 'aboveBar', color: strong ? (buy ? '#2fbf71' : '#ef5350') : '#6b7a8c', shape: buy ? 'arrowUp' : 'arrowDown', text }); };
+  (BOT?.trades || []).filter(t => t.symbol === s).forEach(t => arrow(ut(t.entry_time_utc), t.side === 'BUY', `bot ${t.side} → ${t.exit_reason}`, true));
+  (BOT?.open || []).filter(o => o.sym === s).forEach(o => arrow(+o.entry_t, o.side === 'BUY', `bot ${o.side} (open)`, true));
+  arrow(B[B.length - 1].t, side > 0, sig ? `${sd} ${(best * 100).toFixed(0)}%` : `leans ${sd}`, sig);
+  mk.sort((a, b) => a.time - b.time); cs.setMarkers(mk);
   const Z = r.Z; if (Z && $('#smcOn').checked) {
     const pl = (p, col, t, st_ = 2) => p != null && Number.isFinite(p) && lines.push(cs.createPriceLine({ price: p, color: col, lineWidth: 1, lineStyle: st_, title: t, axisLabelVisible: false }));
     pl(Z.fib(0.5), '#e0b34188', 'Fib 50'); pl(Z.fib(0.62), '#e0b341', 'OTE 62'); pl(Z.fib(0.705), '#e0b341', 'OTE 70.5', 0); pl(Z.fib(0.79), '#e0b341', 'OTE 79');
@@ -339,7 +377,7 @@ async function showPair(s, fit) {
   }
   if (fit) chart.timeScale().setVisibleLogicalRange({ from: B.length - 160, to: B.length + 5 });
 }
-$('#smcOn').addEventListener('change', () => selected && showPair(selected, false));
+$('#smcOn').addEventListener('change', () => { if (selected) { showChecks(selected); showPair(selected, false); } });
 document.querySelectorAll('#tfs button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#tfs button').forEach(x => x.classList.toggle('on', x === b)); tf = +b.dataset.g; if (selected) showPair(selected, true); }));
 
@@ -351,9 +389,9 @@ function renderTaken() {
   (BOT.trades || []).forEach(t => rows.push({ sym: t.symbol, side: t.side, t: t.entry_time_utc, entry: +t.entry, sl: +t.SL, tp: +t.TP, p: +t.pred, res: t.exit_reason, r: +t.R_net, usd: +t.pnl_usd }));
   rows.sort((p, q) => q.t.localeCompare(p.t));
   const mp = minPips(), shown = rows.filter(x => Math.abs(x.tp - x.entry) / pip(x.sym) >= mp), hid = rows.length - shown.length;
-  $('#taken').innerHTML = (shown.length ? '<div class="scroll"><table><tr><th>Entry (UTC)</th><th>Pair</th><th>Side</th><th class="num">Win%</th><th class="num">Target pips</th><th>Result</th><th class="num">$</th></tr>' +
+  $('#taken').innerHTML = (shown.length ? '<div class="scroll"><table><tr><th>Entry (UTC)</th><th>Pair</th><th>Side</th><th class="num">Win%</th><th class="num">SL pips</th><th class="num">TP pips</th><th>Result</th><th class="num">$</th></tr>' +
     shown.slice(0, 20).map(x => `<tr><td class="mono">${esc(x.t)}</td><td class="mono">${esc(x.sym)}</td><td class="${x.side === 'SELL' ? 'neg' : 'pos'}">${esc(x.side)}</td><td class="num">${(x.p * 100).toFixed(1)}</td>
-      <td class="num">${(Math.abs(x.tp - x.entry) / pip(x.sym)).toFixed(0)}</td><td class="${x.res === 'TP' ? 'pos' : x.res === 'SL' ? 'neg' : 'warn'}">${esc(x.res)}${x.r != null ? ` (${x.r >= 0 ? '+' : ''}${x.r.toFixed(2)}R)` : ''}</td><td class="num ${x.usd >= 0 ? 'pos' : 'neg'}">${x.usd != null ? x.usd.toFixed(2) : '–'}</td></tr>`).join('') + '</table></div>'
+      <td class="num neg">${(Math.abs(x.sl - x.entry) / pip(x.sym)).toFixed(0)}</td><td class="num pos">${(Math.abs(x.tp - x.entry) / pip(x.sym)).toFixed(0)}</td><td class="${x.res === 'TP' ? 'pos' : x.res === 'SL' ? 'neg' : 'warn'}">${esc(x.res)}${x.r != null ? ` (${x.r >= 0 ? '+' : ''}${x.r.toFixed(2)}R)` : ''}</td><td class="num ${x.usd >= 0 ? 'pos' : 'neg'}">${x.usd != null ? x.usd.toFixed(2) : '–'}</td></tr>`).join('') + '</table></div>'
     : '<div class="empty">No bot signal with this target size yet.</div>') + (hid ? `<p class="note">${hid} smaller-target trade(s) hidden by the pips filter.</p>` : '');
 }
 async function loadBot() {
@@ -366,7 +404,7 @@ async function loadBot() {
     $('#kBal').textContent = '$' + Number(BOT.balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
     $('#kBalS').textContent = `${BOT.n_trades} closed · data ${d.built_utc} UTC`;
     $('#botOpen').innerHTML = BOT.open.length ? '<div class="scroll"><table><tr><th>Pair</th><th>Side</th><th class="num">Entry</th><th class="num">SL</th><th class="num">TP</th><th class="num">Win%</th></tr>' +
-      BOT.open.map(o => `<tr><td class="mono">${esc(o.sym)}</td><td class="${o.side === 'SELL' ? 'neg' : 'pos'}">${esc(o.side)}</td><td class="num">${o.entry}</td><td class="num">${o.sl}</td><td class="num">${o.tp}</td><td class="num">${(o.pred * 100).toFixed(1)}</td></tr>`).join('') + '</table></div>'
+      BOT.open.map(o => `<tr><td class="mono">${esc(o.sym)}</td><td class="${o.side === 'SELL' ? 'neg' : 'pos'}">${esc(o.side)}</td><td class="num">${o.entry}</td><td class="num">${o.sl} <span class="dim">(${(Math.abs(o.sl - o.entry) / pipOf(o.sym)).toFixed(0)}p)</span></td><td class="num">${o.tp} <span class="dim">(${(Math.abs(o.tp - o.entry) / pipOf(o.sym)).toFixed(0)}p)</span></td><td class="num">${(o.pred * 100).toFixed(1)}</td></tr>`).join('') + '</table></div>'
       : '<div class="empty">No open trades.</div>';
     $('#botClosed').innerHTML = BOT.trades.length ? '<div class="scroll"><table><tr><th>Pair</th><th>Side</th><th>Exit (UTC)</th><th>Reason</th><th class="num">R</th><th class="num">$</th></tr>' +
       BOT.trades.slice(0, 10).map(t => `<tr><td class="mono">${esc(t.symbol)}</td><td>${esc(t.side)}</td><td class="mono">${esc(t.exit_time_utc)}</td><td>${esc(t.exit_reason)}</td><td class="num ${+t.R_net >= 0 ? 'pos' : 'neg'}">${(+t.R_net).toFixed(2)}</td><td class="num ${+t.pnl_usd >= 0 ? 'pos' : 'neg'}">${(+t.pnl_usd).toFixed(2)}</td></tr>`).join('') + '</table></div>'
@@ -383,10 +421,10 @@ $('#notify').addEventListener('click', async () => {
 setInterval(() => { const n = new Date(), m = 59 - n.getUTCMinutes(), s = 59 - n.getUTCSeconds(); $('#nextBar').textContent = `next H1 close in ${m}:${String(s).padStart(2, '0')}`; }, 1000);
 (async () => {
   MODEL = await fetch('model_v3.json').then(r => r.json());
-  await loadBot(); setStatus('Connecting to Deriv…', '');
+  await loadNews(); await loadBot(); setStatus('Connecting to Deriv…', '');
   await connect(); await refreshAll();
   // refresh one minute after every H1 close, prices every 2 minutes, bot data every 10 minutes
-  setInterval(refreshAll, 2 * 60 * 1000); setInterval(loadBot, 10 * 60 * 1000);
+  setInterval(refreshAll, 2 * 60 * 1000); setInterval(loadBot, 10 * 60 * 1000); setInterval(loadNews, 10 * 60 * 1000); setInterval(showNewsKpi, 30 * 1000);
 })();
 </script>
 </body>
