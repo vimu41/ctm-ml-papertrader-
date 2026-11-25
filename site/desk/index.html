@@ -56,6 +56,8 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
 .note{color:var(--faint);font-size:12px;margin:10px 0 0}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:6px}
 .legend i{display:inline-block;width:12px;height:3px;margin-right:5px;vertical-align:middle}
+.ic.info{background:#4aa3ff}.smch{font:600 12px "IBM Plex Mono",monospace;color:var(--mute);margin:10px 0 2px;text-transform:uppercase;letter-spacing:.04em}
+.tgl{font-size:12px;color:var(--mute);margin-left:auto;display:flex;align-items:center;gap:4px}
 </style>
 </head>
 <body>
@@ -94,9 +96,11 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{backgroun
       <h2 id="dTitle">Select a pair</h2>
       <div class="tfs" id="tfs">
         <button data-g="300">M5</button><button data-g="900">M15</button><button data-g="3600" class="on">H1</button><button data-g="14400">H4</button>
+        <label class="tgl"><input type="checkbox" id="smcOn" checked> SMC levels</label>
       </div>
       <div id="chart"></div>
       <div class="legend"><span><i style="background:#8a63d2"></i>EMA 200</span><span><i style="background:var(--buy)"></i>target</span><span><i style="background:var(--sell)"></i>stop</span><span>Signal is H1 only; other timeframes are for viewing the entry.</span></div>
+      <div class="legend"><span><i style="background:#e0b341"></i>Fib / OTE 62–79%</span><span><i style="background:#c77dff"></i>PDH / PDL</span><span><i style="background:#ff9f43"></i>equal highs / lows</span><span><i style="background:#26c6da"></i>order block (POI)</span><span><i style="background:#9ccc65"></i>FVG</span></div>
       <div class="levels" id="levels"></div>
     </div>
     <div class="card"><h2 id="ckTitle">Checklist</h2><div id="checks"><div class="empty">–</div></div></div>
@@ -154,6 +158,50 @@ const prob = (M, x) => 1 / (1 + Math.exp(-E.predict(M, x)));
 const pipOf = s => /JPY/.test(s) ? 0.01 : s === 'XAUUSD' ? 0.1 : s === 'XAGUSD' ? 0.01 : 0.0001;
 const dp = s => /JPY/.test(s) ? 3 : s === 'XAUUSD' ? 2 : s === 'XAGUSD' ? 3 : 5;
 
+// ---------- SMC context (chart + checklist info only; backtest showed it does not improve the model)
+function smc(H, D, atr) {
+  const n = H.length, i = n - 1, SW = 48; if (n < SW + 10) return null;
+  let hh = -Infinity, ll = Infinity, ih = 0, il = 0;
+  for (let k = i - SW + 1; k <= i; k++) { if (H[k].h > hh) { hh = H[k].h; ih = k; } if (H[k].l < ll) { ll = H[k].l; il = k; } }
+  const up = ih > il, rng = hh - ll, c = H[i].c, retr = rng > 0 ? (up ? (hh - c) / rng : (c - ll) / rng) : 0;
+  const fib = f => up ? hh - f * rng : ll + f * rng;          // retracement levels of the last swing
+  let pdh = null, pdl = null;
+  if (D) for (let k = D.length - 1; k >= 0; k--) if (D[k].t + 86400 <= H[i].t + 3600) { pdh = D[k].h; pdl = D[k].l; break; }
+  const tol = 0.15 * atr; let eqh = 0, eql = 0;
+  for (let k = i - SW + 1; k <= i; k++) { if (k !== ih && Math.abs(H[k].h - hh) < tol) eqh++; if (k !== il && Math.abs(H[k].l - ll) < tol) eql++; }
+  let ph = -Infinity, pl = Infinity; for (let k = i - SW - 3; k < i - 2; k++) { ph = Math.max(ph, H[k].h); pl = Math.min(pl, H[k].l); }
+  let sweepH = false, sweepL = false;
+  for (let k = i - 2; k <= i; k++) { const b = H[k];
+    if ((b.h > ph && b.c < ph) || (pdh != null && b.h > pdh && b.c < pdh)) sweepH = true;
+    if ((b.l < pl && b.c > pl) || (pdl != null && b.l < pdl && b.c > pdl)) sweepL = true; }
+  // order blocks: last opposite candle before a >1.5 ATR move within 3 bars; keep the newest one not yet traded through
+  let bob = null, beb = null;
+  for (let k = i - 3; k >= i - 150 && k >= 0; k--) { const b = H[k], fwd = H[k + 3].c - b.c;
+    if (!bob && b.c < b.o && fwd > 1.5 * atr) { let ok = true; for (let q = k + 1; q <= i; q++) if (H[q].c < b.l) { ok = false; break; } if (ok) bob = { hi: b.h, lo: b.l }; }
+    if (!beb && b.c > b.o && -fwd > 1.5 * atr) { let ok = true; for (let q = k + 1; q <= i; q++) if (H[q].c > b.h) { ok = false; break; } if (ok) beb = { hi: b.h, lo: b.l }; }
+    if (bob && beb) break; }
+  // fair value gaps (3-candle) in the last 30 bars that are not filled yet
+  let bfvg = null, sfvg = null;
+  for (let k = i; k >= i - 30 && k >= 2; k--) { const a = H[k - 2], b = H[k];
+    if (!bfvg && b.l > a.h) { let f = false; for (let q = k + 1; q <= i; q++) if (H[q].l <= a.h) { f = true; break; } if (!f) bfvg = { hi: b.l, lo: a.h }; }
+    if (!sfvg && b.h < a.l) { let f = false; for (let q = k + 1; q <= i; q++) if (H[q].h >= a.l) { f = true; break; } if (!f) sfvg = { hi: a.l, lo: b.h }; }
+    if (bfvg && sfvg) break; }
+  return { up, hh, ll, retr, fib, ote: [fib(0.62), fib(0.79)], pdh, pdl, eqh, eql, sweepH, sweepL, bob, beb, bfvg, sfvg };
+}
+function smcChecks(s, r, long) {
+  const Z = r.Z, c = r.F.close, a = r.F.atr; if (!Z) return [];
+  const tp = c + (long ? 1.5 : -1.5) * a, d = dp(s), f = v => v == null ? '–' : v.toFixed(d);
+  const inOTE = long ? (Z.up && Z.retr >= 0.62 && Z.retr <= 0.79) : (!Z.up && Z.retr >= 0.62 && Z.retr <= 0.79);
+  const poi = long ? [Z.bob, Z.bfvg].filter(z => z && c - z.hi <= a && c >= z.lo) : [Z.beb, Z.sfvg].filter(z => z && z.lo - c <= a && c <= z.hi);
+  const block = long ? [Z.pdh, Z.eqh ? Z.hh : null].filter(v => v != null && v > c && v < tp) : [Z.pdl, Z.eql ? Z.ll : null].filter(v => v != null && v < c && v > tp);
+  return [
+    { n: `Price in OTE zone (62–79% of last ${Z.up ? 'up' : 'down'} swing)`, ok: inOTE, i: `retracement ${(Z.retr * 100).toFixed(0)}% · zone ${f(Math.min(...Z.ote))}–${f(Math.max(...Z.ote))}` },
+    { n: `Liquidity swept ${long ? 'below (sell-side)' : 'above (buy-side)'} in last 3 bars`, ok: long ? Z.sweepL : Z.sweepH, i: `PDH ${f(Z.pdh)} · PDL ${f(Z.pdl)}` },
+    { n: `At a ${long ? 'bullish' : 'bearish'} POI (order block or FVG within 1 ATR)`, ok: poi.length > 0, i: poi.length ? poi.map(z => `${f(z.lo)}–${f(z.hi)}`).join(' · ') : 'none close' },
+    { n: `No ${long ? 'PDH / equal highs' : 'PDL / equal lows'} before the target`, ok: block.length === 0, i: block.length ? 'liquidity at ' + block.map(f).join(', ') : 'clear path to TP' },
+  ];
+}
+
 // ---------- Deriv feed
 function send(req) { return new Promise((res, rej) => { const id = reqId++; pending[id] = { res, rej }; ws.send(JSON.stringify(Object.assign(req, { req_id: id })));
   setTimeout(() => { if (pending[id]) { delete pending[id]; rej(new Error('timeout')); } }, 20000); }); }
@@ -174,6 +222,7 @@ async function loadPair(s) {
     const xv = x28(F.x);
     Object.assign(st[s], { H, D, F, pl: prob(MODEL.L, xv), ps: prob(MODEL.S, xv), price: H[H.length - 1].c,
       roll: ROLL.includes(new Date(F.t * 1000).getUTCHours()), err: null });
+    st[s].Z = smc(closed, D, F.atr);
   } catch (e) { st[s].err = e.message; }
 }
 async function refreshAll() {
@@ -237,8 +286,11 @@ function render() {
 function showChecks(s) {
   const r = st[s], C = checklist(s, r);
   $('#ckTitle').textContent = `Checklist · ${s} ${C.side} · ${C.score}/7`;
-  $('#checks').innerHTML = C.items.map(k => `<div class="ck"><span class="ic ${k.ok ? 'ok' : 'bad'}"></span><div>${esc(k.n)}<small>${esc(k.i)}</small></div></div>`).join('') +
-    '<p class="note" style="margin-top:8px">The bot trades on the first item (win chance) only; the other checks are extra confirmation for you.</p>';
+  const Sm = smcChecks(s, r, C.side === 'BUY'), sOk = Sm.filter(k => k.ok).length;
+  const row = (k, cls) => `<div class="ck"><span class="ic ${cls}"></span><div>${esc(k.n)}<small>${esc(k.i)}</small></div></div>`;
+  $('#checks').innerHTML = C.items.map(k => row(k, k.ok ? 'ok' : 'bad')).join('') +
+    (Sm.length ? `<div class="smch">SMC context · ${sOk}/${Sm.length} (info, not scored)</div>` + Sm.map(k => row(k, k.ok ? 'info' : '')).join('') : '') +
+    '<p class="note" style="margin-top:8px">The bot trades on the first item (win chance) only; the other checks are extra confirmation for you. SMC items are context: in the 2021–2026 backtest, adding them to the model lowered the win rate (50% → 45% on 50+ pip targets).</p>';
 }
 $('#rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-s]'); if (tr) { selected = tr.dataset.s; render(); showPair(selected, true); } });
 
@@ -275,8 +327,19 @@ async function showPair(s, fit) {
   lines = [cs.createPriceLine({ price: tp, color: '#2fbf71', lineWidth: 1, lineStyle: 2, title: 'TP' }), cs.createPriceLine({ price: sl, color: '#ef5350', lineWidth: 1, lineStyle: 2, title: 'SL' })];
   (BOT?.open || []).filter(o => o.sym === s).forEach(o => { lines.push(cs.createPriceLine({ price: o.entry, color: '#4aa3ff', lineWidth: 2, title: 'BOT ' + (o.side || '') }));
     lines.push(cs.createPriceLine({ price: o.sl, color: '#ef5350', lineWidth: 2, title: 'bot SL' })); lines.push(cs.createPriceLine({ price: o.tp, color: '#2fbf71', lineWidth: 2, title: 'bot TP' })); });
+  const Z = r.Z; if (Z && $('#smcOn').checked) {
+    const pl = (p, col, t, st_ = 2) => p != null && Number.isFinite(p) && lines.push(cs.createPriceLine({ price: p, color: col, lineWidth: 1, lineStyle: st_, title: t, axisLabelVisible: false }));
+    pl(Z.fib(0.5), '#e0b34188', 'Fib 50'); pl(Z.fib(0.62), '#e0b341', 'OTE 62'); pl(Z.fib(0.705), '#e0b341', 'OTE 70.5', 0); pl(Z.fib(0.79), '#e0b341', 'OTE 79');
+    pl(Z.pdh, '#c77dff', 'PDH', 0); pl(Z.pdl, '#c77dff', 'PDL', 0);
+    if (Z.eqh) pl(Z.hh, '#ff9f43', `EQH ×${Z.eqh + 1}`, 1); if (Z.eql) pl(Z.ll, '#ff9f43', `EQL ×${Z.eql + 1}`, 1);
+    if (Z.bob) { pl(Z.bob.hi, '#26c6da', 'Bull OB', 3); pl(Z.bob.lo, '#26c6da', '', 3); }
+    if (Z.beb) { pl(Z.beb.hi, '#26c6da', 'Bear OB', 3); pl(Z.beb.lo, '#26c6da', '', 3); }
+    if (Z.bfvg) { pl(Z.bfvg.hi, '#9ccc65', 'Bull FVG', 3); pl(Z.bfvg.lo, '#9ccc65', '', 3); }
+    if (Z.sfvg) { pl(Z.sfvg.hi, '#9ccc65', 'Bear FVG', 3); pl(Z.sfvg.lo, '#9ccc65', '', 3); }
+  }
   if (fit) chart.timeScale().setVisibleLogicalRange({ from: B.length - 160, to: B.length + 5 });
 }
+$('#smcOn').addEventListener('change', () => selected && showPair(selected, false));
 document.querySelectorAll('#tfs button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#tfs button').forEach(x => x.classList.toggle('on', x === b)); tf = +b.dataset.g; if (selected) showPair(selected, true); }));
 
