@@ -176,7 +176,7 @@ async function loadNews() {
 }
 function showNewsKpi() {
   const e = nextNews(null), now = Date.now() / 1000;
-  if (!e) { $('#kNews').textContent = NEWS.length ? 'none left' : '–'; $('#kNewsS').textContent = NEWS.length ? 'this week' : 'calendar not loaded yet'; return; }
+  if (!e) { $('#kNews').textContent = NEWS.length ? 'none left' : '–'; $('#kNewsS').textContent = NEWS.length ? 'this week + next week' : 'calendar not loaded yet'; return; }
   $('#kNews').innerHTML = e.t <= now ? '<span class="warn">NOW</span>' : `<span class="${e.t - now < 7200 ? 'warn' : ''}">${fmtIn(e.t - now)}</span>`;
   $('#kNewsS').textContent = `${e.c} · ${e.n}`;
 }
@@ -219,7 +219,7 @@ function smcChecks(s, r, long) {
   const block = long ? [Z.pdh, Z.eqh ? Z.hh : null].filter(v => v != null && v > c && v < tp) : [Z.pdl, Z.eql ? Z.ll : null].filter(v => v != null && v < c && v > tp);
   const nw = nextNews(s), now = Date.now() / 1000;
   const newsItem = { n: 'No high-impact news for this pair in the next 2 hours', ok: !nw || nw.t - now > 7200,
-    i: nw ? `${nw.c} ${nw.n} in ${nw.t <= now ? 'NOW' : fmtIn(nw.t - now)}` + (nw.f ? ` · forecast ${nw.f}` : '') : (NEWS.length ? 'nothing this week' : 'calendar not loaded') };
+    i: nw ? `${nw.c} ${nw.n} in ${nw.t <= now ? 'NOW' : fmtIn(nw.t - now)}` + (nw.f ? ` · forecast ${nw.f}` : '') : (NEWS.length ? 'none this week or next' : 'calendar not loaded') };
   return [newsItem,
     { n: `Price in OTE zone (62–79% of last ${Z.up ? 'up' : 'down'} swing)`, ok: inOTE, i: `retracement ${(Z.retr * 100).toFixed(0)}% · zone ${f(Math.min(...Z.ote))}–${f(Math.max(...Z.ote))}` },
     { n: `Liquidity swept ${long ? 'below (sell-side)' : 'above (buy-side)'} in last 3 bars`, ok: long ? Z.sweepL : Z.sweepH, i: `PDH ${f(Z.pdh)} · PDL ${f(Z.pdl)}` },

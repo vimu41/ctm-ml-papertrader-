@@ -30,12 +30,23 @@ jobs:
           git add site/data.json
           git diff --cached --quiet || git commit -m "dashboard data $(date -u +'%Y-%m-%d %H:%M')"
           git pull --rebase && git push
-      - name: Economic calendar (high-impact news, info for the desk only)
+      - name: Economic calendar (high-impact news, this week + next week; info for the desk only)
         run: |
-          curl -fsSL --retry 2 -A "Mozilla/5.0" https://nfs.faireconomy.media/ff_calendar_thisweek.json -o /tmp/news.json \
-            && python -c "import json;d=json.load(open('/tmp/news.json'));assert isinstance(d,list)" \
-            && cp /tmp/news.json site/news.json || echo '[]' > site/news.json
-          python -c "import json;print(len(json.load(open('site/news.json'))),'events')"
+          for w in thisweek nextweek; do
+            curl -fsSL --retry 2 -A "Mozilla/5.0" https://nfs.faireconomy.media/ff_calendar_$w.json -o /tmp/$w.json || echo '[]' > /tmp/$w.json
+          done
+          python - <<'PY'
+          import json
+          out, seen = [], set()
+          for w in ('thisweek', 'nextweek'):
+              try: d = json.load(open(f'/tmp/{w}.json'))
+              except Exception: d = []
+              for e in d if isinstance(d, list) else []:
+                  k = (e.get('date'), e.get('country'), e.get('title'))
+                  if k not in seen: seen.add(k); out.append(e)
+          json.dump(out, open('site/news.json', 'w'))
+          print(len(out), 'events,', sum(e.get('impact') == 'High' for e in out), 'high impact')
+          PY
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
