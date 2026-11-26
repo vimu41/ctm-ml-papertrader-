@@ -1,6 +1,6 @@
 # CTM ML paper trading - live forward test
 
-Started 2026-11-10 04:10 UTC · last run 2026-11-26 19:09 UTC
+Started 2026-11-10 04:10 UTC · last run 2026-11-26 20:07 UTC
 
 | Metric | Value |
 |---|---|
