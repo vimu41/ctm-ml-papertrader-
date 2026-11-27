@@ -1,0 +1,2 @@
+symbol,side,signal_bar_utc,entry_time_utc,entry,SL,TP,exit_time_utc,exit,exit_reason,bars_held,R_gross,cost_R,R_net,risk_usd,pnl_usd,balance_after,pred
+LINKUSDT,BUY,2026-11-27 06:00,2026-11-27 07:00,9.591,9.39242857,9.98814286,2026-11-27 15:00,9.39242857,SL,8,-1.0,0.097,-1.097,25.0,-27.41,9972.58,0.207

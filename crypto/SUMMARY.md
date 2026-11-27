@@ -1,19 +1,14 @@
 # CTM crypto paper trading (experimental)
 
-Started 2026-11-15 18:50 UTC · last run 2026-11-27 14:07 UTC
+Started 2026-11-15 18:50 UTC · last run 2026-11-27 15:07 UTC
 
 | Metric | Value |
 |---|---|
-| Paper balance | $10,000.00 (start $10,000) |
-| Closed trades | 0 |
-| Win rate | - |
-| Average R per trade | - |
-| Total R | +0.00 |
-| Worst drawdown | 0.00 R |
-| Open trades | 1 |
+| Paper balance | $9,972.58 (start $10,000) |
+| Closed trades | 1 |
+| Win rate | 0% |
+| Average R per trade | -1.097 (backtest: about +0.07) |
+| Total R | -1.10 |
+| Worst drawdown | -1.10 R |
+| Open trades | 0 |
 
-## Open trades
-
-| Coin | Entry (UTC) | Entry | SL | TP | Pred |
-|---|---|---|---|---|---|
-| LINKUSDT | 2026-11-27 07:00 | 9.591 | 9.39242857 | 9.98814286 | 0.207 |
