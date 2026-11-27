@@ -1,6 +1,6 @@
 # CTM crypto paper trading (experimental)
 
-Started 2026-11-15 18:50 UTC · last run 2026-11-27 06:07 UTC
+Started 2026-11-15 18:50 UTC · last run 2026-11-27 07:07 UTC
 
 | Metric | Value |
 |---|---|
@@ -10,5 +10,10 @@ Started 2026-11-15 18:50 UTC · last run 2026-11-27 06:07 UTC
 | Average R per trade | - |
 | Total R | +0.00 |
 | Worst drawdown | 0.00 R |
-| Open trades | 0 |
+| Open trades | 1 |
 
+## Open trades
+
+| Coin | Entry (UTC) | Entry | SL | TP | Pred |
+|---|---|---|---|---|---|
+| LINKUSDT | 2026-11-27 07:00 | 9.591 | 9.39242857 | 9.98814286 | 0.207 |
