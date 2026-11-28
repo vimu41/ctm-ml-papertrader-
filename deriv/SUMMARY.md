@@ -1,6 +1,6 @@
 # Deriv CV 01 — ICT OTE paper bot (volatility indices, risk 1 ATR : target 1.5 ATR)
 
-Started 2026-11-28 08:20 UTC · last run 2026-11-28 08:20 UTC
+Started 2026-11-28 08:20 UTC · last run 2026-11-28 08:23 UTC
 
 | Metric | Value |
 |---|---|
