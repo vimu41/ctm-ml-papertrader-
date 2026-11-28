@@ -36,7 +36,7 @@ jobs:
             python deriv/bot.py || true                # Deriv CV 01: volatility indices trade 24/7
             mkdir -p fx_v3_50/data
             git add -A data SUMMARY.md fx_v2/data fx_v2/SUMMARY.md crypto/data crypto/SUMMARY.md || true
-            git add -A fx_v3_50 deriv/data deriv/SUMMARY.md 2>/dev/null || true
+            for p in fx_v3_50 deriv/data deriv/SUMMARY.md; do [ -e "$p" ] && git add -A "$p" || true; done
             git diff --cached --quiet || git commit -q -m "hourly loop update $(date -u +'%Y-%m-%d %H:%M')"
             for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 10; done
             gh workflow run dashboard.yml --ref main || true    # refresh the dashboard page
