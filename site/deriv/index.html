@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deriv CV 01 Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#0b0f14;--panel:#121820;--panel2:#18202a;--line:#243040;--ink:#e6edf3;--mute:#8b98a8;--faint:#5b6878;
+--buy:#2fbf71;--sell:#ef5350;--warn:#f5b942;--accent:#4aa3ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif}
+.num,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:#0d131a;position:sticky;top:0;z-index:10}
+header h1{font-size:16px;margin:0}
+.meta{color:var(--mute);font-size:12px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);margin-right:6px;vertical-align:middle}
+.dot.live{background:var(--buy);box-shadow:0 0 6px var(--buy)}.dot.err{background:var(--sell)}
+.controls{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center}
+button,select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+button.on{background:#223042;border-color:#35465c}
+a{color:var(--accent)}
+main{max-width:1320px;margin:0 auto;padding:14px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px}
+@media(max-width:1000px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--mute);margin:0 0 8px;font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.kpi .v{font:600 20px/1.2 "IBM Plex Mono",monospace}.kpi .s{color:var(--mute);font-size:12px}
+.scroll{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 7px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}
+th{color:var(--mute);font-weight:500;font-size:12px;background:var(--panel);position:sticky;top:0}
+td.num,th.num{text-align:right}
+tbody tr{cursor:pointer}tbody tr:hover{background:#16202b}tbody tr.sel{background:#1b2735}
+.pos{color:var(--buy)}.neg{color:var(--sell)}.warn{color:var(--warn)}.dim{color:var(--faint)}
+.meter{position:relative;height:12px;width:150px;background:var(--panel2);border-radius:3px;overflow:hidden}
+.meter .f{position:absolute;top:0;bottom:0;left:0}
+.meter .t{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--warn)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;border:1px solid var(--line);color:var(--mute)}
+.pill.sig{color:#0b0f14;background:var(--buy);border-color:var(--buy);font-weight:600}.pill.sig.s{background:var(--sell);border-color:var(--sell)}
+.pill.near{color:var(--warn);border-color:#6b5320}.pill.roll{color:var(--faint)}
+#chart{height:560px}
+.chk{display:inline-flex;gap:3px}.chk i{width:10px;height:10px;border-radius:2px;background:#26323f;display:inline-block}.chk i.ok{background:var(--buy)}.chk i.bad{background:var(--sell)}
+.ck{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start;font-size:13px;padding:4px 0;border-bottom:1px dashed #1d2734}
+.ck .ic{width:14px;height:14px;border-radius:3px;margin-top:3px;background:#26323f}.ck .ic.ok{background:var(--buy)}.ck .ic.bad{background:var(--sell)}
+.ck small{display:block;color:var(--faint);font:12px "IBM Plex Mono",monospace}
+.row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed #1d2734;padding:5px 0;font-size:13px}
+.row .k{color:var(--mute)}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.lv{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center}
+.lv .k{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.6px}.lv .v{font:600 15px "IBM Plex Mono",monospace}
+.tfs{display:flex;gap:4px;margin-bottom:8px}
+.empty{color:var(--faint);font-size:13px;padding:10px 2px}
+.note{color:var(--faint);font-size:12px;margin:10px 0 0}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:3px;margin-right:5px;vertical-align:middle}
+.ic.info{background:#4aa3ff}.smch{font:600 12px "IBM Plex Mono",monospace;color:var(--mute);margin:10px 0 2px;text-transform:uppercase;letter-spacing:.04em}
+.tgl{font-size:12px;color:var(--mute);margin-left:auto;display:flex;align-items:center;gap:4px}
+.sidebig{display:inline-block;font:700 13px "IBM Plex Mono",monospace;padding:2px 8px;border-radius:4px;margin-right:6px;color:#0b0f14}
+.sidebig.b{background:var(--buy)}.sidebig.s{background:var(--sell)}.sidebig.w{background:#3b4b60;color:#cfd8e3}
+.newsflag{color:var(--warn);font-size:11px;margin-left:4px}
+
+main{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)}
+.fl{display:grid;grid-template-columns:auto 18px 1fr;gap:8px;align-items:start;font-size:13px;padding:5px 0;border-bottom:1px dashed #1d2734}
+.fl input{margin-top:3px}.fl small{display:block;color:var(--faint);font:12px "IBM Plex Mono",monospace}
+.fl .bt{color:var(--mute);font-size:11px}
+.ic{width:14px;height:14px;border-radius:3px;margin-top:3px;background:#26323f;display:inline-block}.ic.ok{background:var(--buy)}.ic.bad{background:var(--sell)}.ic.off{background:#26323f}
+.verdict{margin-top:10px;padding:10px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-weight:600}
+.verdict.b{border-color:var(--buy);color:var(--buy)}.verdict.s{border-color:var(--sell);color:var(--sell)}
+.zone{display:inline-block;min-width:44px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Deriv CV 01 Desk · ICT OTE</h1>
+  <span class="meta"><span class="dot" id="dot"></span><span id="status">Connecting…</span></span>
+  <div class="controls">
+    <span class="meta" id="nextBar"></span>
+    <button id="notify" title="Browser alert when an index gives a bot signal">🔔 Alerts off</button>
+    <a class="meta" href="../desk/">Forex v3 Desk</a>
+    <a class="meta" href="../">Bot dashboard</a>
+  </div>
+</header>
+<main>
+  <section style="display:grid;gap:12px;align-content:start">
+    <div class="kpis" style="margin:0">
+      <div class="card kpi"><h2>Bot signals now</h2><div class="v" id="kSig">–</div><div class="s">OTE + confirmation candle</div></div>
+      <div class="card kpi"><h2>In OTE zone</h2><div class="v" id="kOte">–</div><div class="s">waiting for confirmation</div></div>
+      <div class="card kpi"><h2>Paper balance</h2><div class="v" id="kBal">–</div><div class="s" id="kBalS">bot journal</div></div>
+    </div>
+    <div class="card">
+      <h2>All indices · last closed H1 bar · swing = last 48 bars</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Index</th><th class="num">Price</th><th>Swing</th><th class="num">Retrace</th><th>Status</th><th>Your filters</th><th class="num">ATR</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="7" class="empty">Loading prices from Deriv…</td></tr></tbody>
+      </table></div>
+      <div class="legend"><span>OTE zone = 62–79% retracement of the last swing. Bot trades when price is in the zone and the bar closes beyond the previous bar (confirmation).</span></div>
+    </div>
+    <div class="card"><h2>Signals the bot took</h2><div id="taken"><div class="empty">–</div></div></div>
+  </section>
+  <section style="display:grid;gap:12px;align-content:start">
+    <div class="card">
+      <h2 id="dTitle">Select an index</h2>
+      <div class="tfs" id="tfs">
+        <button data-g="300">M5</button><button data-g="900">M15</button><button data-g="3600" class="on">H1</button><button data-g="14400">H4</button>
+        <label class="tgl"><input type="checkbox" id="tFib" checked> Fib / OTE</label>
+        <label class="tgl" style="margin-left:8px"><input type="checkbox" id="tEma" checked> EMA 50/200</label>
+        <label class="tgl" style="margin-left:8px"><input type="checkbox" id="tIchi"> Ichimoku</label>
+        <label class="tgl" style="margin-left:8px"><input type="checkbox" id="tSmc"> FVG / liquidity</label>
+      </div>
+      <div id="chart"></div>
+      <div class="legend"><span><i style="background:#e0b341"></i>OTE 62 / 70.5 / 79</span><span><i style="background:#8b98a8"></i>swing high / low</span><span><i style="background:#4aa3ff"></i>EMA 50</span><span><i style="background:#8a63d2"></i>EMA 200</span><span><i style="background:#26c6da"></i>Ichimoku span A / B</span><span><i style="background:#9ccc65"></i>FVG</span><span><i style="background:#ff9f43"></i>liquidity (48-bar high/low)</span></div>
+      <div class="levels" id="levels"></div>
+    </div>
+    <div class="card"><h2 id="ckTitle">Decision & filters</h2><div id="checks"><div class="empty">–</div></div></div>
+    <div class="card"><h2>Bot: open trades</h2><div id="botOpen"><div class="empty">–</div></div></div>
+    <div class="card"><h2>Bot: recent closed trades</h2><div id="botClosed"><div class="empty">–</div></div></div>
+  </section>
+</main>
+<div style="max-width:1320px;margin:0 auto;padding:0 14px 20px">
+  <p class="note">Deriv CV 01 paper bot: BUY when the last closed H1 bar is in the 62–79% retracement of an up swing (last 48 bars) and closes above the previous bar's high; SELL is the mirror. SL 1×ATR, TP 1.5×ATR, 48h max. Backtest Nov 2025–Nov 2026, 10 indices: 360 trades, win 46.7%, +0.14R (break-even ≈ 41%). The bot uses only that rule. Your filters are extra confirmation and do not change the bot; their backtest numbers are from the same year (in-sample, small samples), so treat them as hints. Volatility indices are generated by Deriv's random number generator. Paper trading only, not financial advice.</p>
+</div>
+<script>
+const SY = ['R_10','R_25','R_50','R_75','R_100','1HZ10V','1HZ25V','1HZ50V','1HZ75V','1HZ100V'];
+const NM = {R_10:'Vol 10',R_25:'Vol 25',R_50:'Vol 50',R_75:'Vol 75',R_100:'Vol 100','1HZ10V':'Vol 10 (1s)','1HZ25V':'Vol 25 (1s)','1HZ50V':'Vol 50 (1s)','1HZ75V':'Vol 75 (1s)','1HZ100V':'Vol 100 (1s)'};
+const URLS = ['wss://api.derivws.com/trading/v1/options/ws/public', 'wss://ws.derivws.com/websockets/v3?app_id=1089'];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let BOT = null, st = {}, selected = null, tf = 3600, ws = null, ui = 0, reqId = 1, pending = {}, alertsOn = false, alerted = {};
+SY.forEach(s => st[s] = {});
+// filters: id, label, backtest (pass / fail) on the OTE trades, default on/off
+const FILTERS = [
+  { id: 'ma', n: 'MA trend agrees (EMA 50 vs EMA 200)', bt: 'backtest: with 50.2% win, +0.23R (233) · without 40.2%, −0.03R (127)', on: true },
+  { id: 'big', n: 'Swing is at least 4 ATR (a real move, not noise)', bt: 'with 48.0% (344) · without 18.8% (16)', on: true },
+  { id: 'shallow', n: 'Not too deep (retracement below 70.5%)', bt: 'with 48.7% (236) · deeper 42.7% (124)', on: false },
+  { id: 'cloud', n: 'Ichimoku: price on the right side of the cloud', bt: 'with 51.9% (only 27 trades)', on: false },
+  { id: 'tk', n: 'Ichimoku: Tenkan above / below Kijun', bt: 'with 71% (only 7 trades, too few)', on: false },
+  { id: 'fvg', n: 'Fresh FVG in the trade direction (last 5 bars)', bt: 'with 46.7% (only 15 trades), no difference', on: false },
+  { id: 'rsi', n: 'RSI not stretched (< 70 for buy, > 30 for sell)', bt: 'always passed in the backtest', on: false },
+];
+const fOn = {}; FILTERS.forEach(f => fOn[f.id] = f.on);
+
+// ---------- maths (same rule as deriv/bot.py)
+function trAt(B, k) { return Math.max(B[k].h - B[k].l, Math.abs(B[k].h - B[k - 1].c), Math.abs(B[k].l - B[k - 1].c)); }
+function ema(c, n) { const a = 2 / (n + 1); const o = [c[0]]; for (let i = 1; i < c.length; i++) o.push(a * c[i] + (1 - a) * o[i - 1]); return o; }
+function analyse(B) {
+  const i = B.length - 1; if (i < 260) return null;
+  let atr = 0; for (let k = i - 13; k <= i; k++) atr += trAt(B, k); atr /= 14;
+  let hh = -Infinity, ll = Infinity, ih = 0, il = 0;
+  for (let k = i - 47; k <= i; k++) { if (B[k].h > hh) { hh = B[k].h; ih = k; } if (B[k].l < ll) { ll = B[k].l; il = k; } }
+  const up = ih > il, rng = hh - ll, c = B[i].c, retr = up ? (hh - c) / rng : (c - ll) / rng;
+  const inOte = retr >= 0.62 && retr <= 0.79, conf = up ? c > B[i - 1].h : c < B[i - 1].l;
+  const side = up ? 'BUY' : 'SELL', sig = inOte && conf, L = up;
+  const C = B.map(b => b.c), e50 = ema(C, 50), e200 = ema(C, 200);
+  const mid = (a, n) => { let h = -Infinity, l = Infinity; for (let k = a - n + 1; k <= a; k++) { h = Math.max(h, B[k].h); l = Math.min(l, B[k].l); } return (h + l) / 2; };
+  const tk = mid(i, 9), kj = mid(i, 26), sa = (mid(i - 26, 9) + mid(i - 26, 26)) / 2, sb = mid(i - 26, 52);
+  let up_ = 0, dn = 0; for (let k = i - 13; k <= i; k++) { const d = C[k] - C[k - 1]; if (d > 0) up_ += d; else dn -= d; } const rsi = dn === 0 ? 100 : 100 - 100 / (1 + up_ / dn);
+  let fvg = false; for (let k = i - 4; k <= i; k++) if (L ? B[k].l > B[k - 2].h : B[k].h < B[k - 2].l) fvg = true;
+  const F = {
+    ma: L ? e50[i] > e200[i] : e50[i] < e200[i], big: rng >= 4 * atr, shallow: retr < 0.705,
+    cloud: L ? c > Math.max(sa, sb) : c < Math.min(sa, sb), tk: L ? tk > kj : tk < kj, fvg, rsi: L ? rsi < 70 : rsi > 30,
+  };
+  const info = { ma: `EMA50 ${e50[i].toFixed(2)} vs EMA200 ${e200[i].toFixed(2)}`, big: `swing ${(rng / atr).toFixed(1)} ATR`, shallow: `retracement ${(retr * 100).toFixed(0)}%`,
+    cloud: `cloud ${Math.min(sa, sb).toFixed(2)}–${Math.max(sa, sb).toFixed(2)}`, tk: `Tenkan ${tk.toFixed(2)} · Kijun ${kj.toFixed(2)}`, fvg: fvg ? 'yes' : 'none', rsi: 'RSI ' + rsi.toFixed(1) };
+  const fib = f => up ? hh - f * rng : ll + f * rng;
+  return { i, t: B[i].t, c, atr, hh, ll, up, retr, inOte, conf, side, sig, F, info, fib, prevH: B[i - 1].h, prevL: B[i - 1].l };
+}
+const userPass = A => FILTERS.filter(f => fOn[f.id]).every(f => A.F[f.id]);
+const dpOf = s => 2;
+
+// ---------- feed
+function send(req) { return new Promise((res, rej) => { const id = reqId++; pending[id] = { res, rej }; ws.send(JSON.stringify(Object.assign(req, { req_id: id })));
+  setTimeout(() => { if (pending[id]) { delete pending[id]; rej(new Error('timeout')); } }, 20000); }); }
+function connect() { return new Promise(res => {
+  ws = new WebSocket(URLS[ui % URLS.length]);
+  ws.onopen = () => res(); ws.onerror = () => {};
+  ws.onclose = () => { ui++; setStatus('Reconnecting…', 'err'); setTimeout(() => connect().then(refreshAll), 4000); };
+  ws.onmessage = ev => { const m = JSON.parse(ev.data); const p = pending[m.req_id]; if (!p) return; delete pending[m.req_id]; m.error ? p.rej(new Error(m.error.message)) : p.res(m); };
+}); }
+const candles = (sym, g, n) => send({ ticks_history: sym, style: 'candles', granularity: g, count: n, end: 'latest' })
+  .then(m => (m.candles || []).map(c => ({ t: +c.epoch, o: +c.open, h: +c.high, l: +c.low, c: +c.close })));
+async function loadIdx(s) {
+  try { const H = await candles(s, 3600, 600), now = Date.now() / 1000, closed = H.filter(b => b.t + 3600 <= now);
+    Object.assign(st[s], { H, closed, A: analyse(closed), price: H[H.length - 1].c, err: null }); } catch (e) { st[s].err = e.message; }
+}
+async function refreshAll() {
+  setStatus('Updating…', '');
+  for (const s of SY) { await loadIdx(s); render(); }
+  setStatus('Live · Deriv feed · ' + new Date().toLocaleTimeString(), 'live');
+  if (!selected) { selected = SY.find(x => st[x].A && st[x].A.sig) || SY.find(x => st[x].A && st[x].A.inOte) || SY[0]; render(); }
+  showIdx(selected, !st[selected].shown); st[selected].shown = true;
+}
+function setStatus(t, c) { $('#status').textContent = t; $('#dot').className = 'dot ' + c; }
+
+// ---------- render
+function status(A) {
+  if (A.sig) return `<span class="pill sig ${A.side === 'SELL' ? 's' : ''}">${A.side} SIGNAL</span>`;
+  if (A.inOte) return '<span class="pill near">in OTE · wait candle</span>';
+  if (A.retr > 0.5 && A.retr < 0.62) return '<span class="pill">near zone</span>';
+  return '<span class="pill">wait</span>';
+}
+function render() {
+  let sig = 0, ote = 0;
+  $('#rows').innerHTML = SY.map(s => {
+    const r = st[s], A = r.A; if (!A) return `<tr data-s="${s}"><td class="mono">${NM[s]}</td><td colspan="6" class="dim">${esc(r.err || 'loading…')}</td></tr>`;
+    if (A.sig) sig++; else if (A.inOte) ote++;
+    if (A.sig && alertsOn && alerted[s] !== A.t) { alerted[s] = A.t; new Notification(`Deriv CV 01: ${A.side} ${NM[s]}`, { body: `OTE ${(A.retr * 100).toFixed(0)}% + confirmation` + (userPass(A) ? ' · your filters pass' : ' · your filters do NOT all pass') }); }
+    const on = FILTERS.filter(f => fOn[f.id]);
+    return `<tr data-s="${s}" class="${s === selected ? 'sel' : ''}"><td class="mono">${NM[s]}</td><td class="num">${r.price.toFixed(2)}</td>
+      <td class="${A.up ? 'pos' : 'neg'}">${A.up ? '▲ up' : '▼ down'}</td><td class="num"><span class="zone ${A.inOte ? 'warn' : ''}">${(A.retr * 100).toFixed(0)}%</span></td><td>${status(A)}</td>
+      <td><span class="chk">${on.map(f => `<i class="${A.F[f.id] ? 'ok' : 'bad'}" title="${esc(f.n)}"></i>`).join('') || '<span class="dim">none on</span>'}</span> ${on.length ? `<span class="dim mono">${on.filter(f => A.F[f.id]).length}/${on.length}</span>` : ''}</td>
+      <td class="num">${A.atr.toFixed(2)}</td></tr>`;
+  }).join('');
+  $('#kSig').textContent = sig; $('#kOte').textContent = ote;
+  if (selected && st[selected].A) showChecks(selected);
+}
+function showChecks(s) {
+  const A = st[s].A, row = (ok, n, i, extra = '') => `<div class="fl"><span></span><span class="ic ${ok}"></span><div>${esc(n)}<small>${esc(i)}</small>${extra}</div></div>`;
+  const bot = row(A.inOte ? 'ok' : 'bad', `Price in OTE zone (62–79% of the ${A.up ? 'up' : 'down'} swing)`, `retracement ${(A.retr * 100).toFixed(1)}% · zone ${Math.min(A.fib(0.62), A.fib(0.79)).toFixed(2)}–${Math.max(A.fib(0.62), A.fib(0.79)).toFixed(2)}`) +
+    row(A.conf ? 'ok' : 'bad', `Confirmation: bar closed ${A.up ? 'above the previous high' : 'below the previous low'}`, `close ${A.c.toFixed(2)} vs ${A.up ? 'prev high ' + A.prevH.toFixed(2) : 'prev low ' + A.prevL.toFixed(2)}`);
+  const fl = FILTERS.map(f => `<div class="fl"><input type="checkbox" data-f="${f.id}" ${fOn[f.id] ? 'checked' : ''} title="use this filter"><span class="ic ${fOn[f.id] ? (A.F[f.id] ? 'ok' : 'bad') : 'off'}"></span><div>${esc(f.n)}<small>${esc(A.info[f.id])}</small><span class="bt">${esc(f.bt)}</span></div></div>`).join('');
+  const pass = userPass(A), nOn = FILTERS.filter(f => fOn[f.id]).length;
+  const v = A.sig ? (pass ? `<div class="verdict ${A.side === 'BUY' ? 'b' : 's'}">✅ ${A.side} — bot signal and all your ${nOn} filter(s) agree</div>` : `<div class="verdict">⚠️ Bot signal ${A.side}, but your filters do not all agree. The bot takes it anyway (paper); you decide for yourself.</div>`)
+    : A.inOte ? `<div class="verdict">⏳ In the OTE zone. Waiting for a ${A.up ? 'close above ' + A.prevH.toFixed(2) : 'close below ' + A.prevL.toFixed(2)}.</div>` : '<div class="verdict">⏸ No setup. Price is not in the OTE zone.</div>';
+  $('#ckTitle').textContent = `Decision & filters · ${NM[s]}`;
+  $('#checks').innerHTML = '<div class="smch">Bot rule (decides the trade)</div>' + bot + '<div class="smch">Your filters · tick to use</div>' + fl + v;
+}
+$('#checks').addEventListener('change', e => { const f = e.target.dataset.f; if (f) { fOn[f] = e.target.checked; render(); } });
+$('#rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-s]'); if (tr) { selected = tr.dataset.s; render(); showIdx(selected, true); } });
+
+let chart, cs, s50, s200, sA, sB, lines = [];
+function ensureChart() {
+  if (chart || !window.LightweightCharts) return;
+  chart = LightweightCharts.createChart($('#chart'), { layout: { background: { color: 'transparent' }, textColor: '#8b98a8', fontFamily: 'IBM Plex Mono' },
+    grid: { vertLines: { color: '#1a2330' }, horzLines: { color: '#1a2330' } }, rightPriceScale: { borderColor: '#243040' }, timeScale: { borderColor: '#243040', timeVisible: true }, autoSize: true });
+  cs = chart.addCandlestickSeries({ upColor: '#2fbf71', downColor: '#ef5350', borderVisible: false, wickUpColor: '#2fbf71', wickDownColor: '#ef5350' });
+  const ln = (color, w = 1, style = 0) => chart.addLineSeries({ color, lineWidth: w, lineStyle: style, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+  s50 = ln('#4aa3ff'); s200 = ln('#8a63d2'); sA = ln('#26c6da', 1, 0); sB = ln('#26c6da', 1, 2);
+}
+async function showIdx(s, fit) {
+  const r = st[s], A = r.A; if (!A) return; showChecks(s);
+  const sd = A.side, e = A.c, a = A.atr, sl = sd === 'BUY' ? e - a : e + a, tp = sd === 'BUY' ? e + 1.5 * a : e - 1.5 * a;
+  const badge = A.sig ? `<span class="sidebig ${sd === 'BUY' ? 'b' : 's'}">${sd} SIGNAL</span>` : A.inOte ? `<span class="sidebig w">in OTE · ${sd} setup</span>` : `<span class="sidebig w">wait</span>`;
+  $('#dTitle').innerHTML = `${badge}${NM[s]} · retracement ${(A.retr * 100).toFixed(0)}% of ${A.up ? 'up' : 'down'} swing`;
+  $('#levels').innerHTML = `<div class="lv"><div class="k">${sd} entry (now)</div><div class="v">${e.toFixed(2)}</div></div>
+    <div class="lv"><div class="k">Stop −1 ATR</div><div class="v neg">${sl.toFixed(2)}</div><div class="k">${a.toFixed(2)} pts</div></div>
+    <div class="lv"><div class="k">Target +1.5 ATR</div><div class="v pos">${tp.toFixed(2)}</div><div class="k">${(1.5 * a).toFixed(2)} pts</div></div>`;
+  ensureChart(); if (!chart) return;
+  let B = r.H; if (tf !== 3600) { try { B = await candles(s, tf, 600); } catch (er) { B = r.H; } }
+  if (s !== selected) return;
+  cs.setData(B.map(b => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c })));
+  const C = B.map(b => b.c), tE = $('#tEma').checked, tI = $('#tIchi').checked;
+  const e50 = ema(C, 50), e200 = ema(C, 200);
+  s50.setData(tE ? B.map((b, i) => ({ time: b.t, value: e50[i] })) : []); s200.setData(tE ? B.map((b, i) => ({ time: b.t, value: e200[i] })) : []);
+  if (tI) { const mid = (k, n) => { let h = -Infinity, l = Infinity; for (let q = k - n + 1; q <= k; q++) { h = Math.max(h, B[q].h); l = Math.min(l, B[q].l); } return (h + l) / 2; };
+    const A_ = [], B_ = []; for (let k = 52; k < B.length; k++) { const t = B[k].t + 26 * (tf); A_.push({ time: t, value: (mid(k, 9) + mid(k, 26)) / 2 }); B_.push({ time: t, value: mid(k, 52) }); }
+    const lastT = B[B.length - 1].t; sA.setData(A_.filter(p => p.time <= lastT)); sB.setData(B_.filter(p => p.time <= lastT)); } else { sA.setData([]); sB.setData([]); }
+  lines.forEach(l => cs.removePriceLine(l)); lines = [];
+  const pl = (p, col, t, ls = 2, w = 1) => lines.push(cs.createPriceLine({ price: p, color: col, lineWidth: w, lineStyle: ls, title: t, axisLabelVisible: !!t }));
+  if ($('#tFib').checked) { pl(A.fib(0), '#8b98a8', A.up ? 'swing high' : 'swing low', 0); pl(A.fib(1), '#8b98a8', A.up ? 'swing low' : 'swing high', 0);
+    pl(A.fib(0.5), '#e0b34166', 'Fib 50'); pl(A.fib(0.62), '#e0b341', 'OTE 62'); pl(A.fib(0.705), '#e0b341', 'OTE 70.5', 0); pl(A.fib(0.79), '#e0b341', 'OTE 79'); }
+  if ($('#tSmc').checked) { const cl = r.closed, n = cl.length; let bf = null, sf = null;
+    for (let k = n - 1; k >= n - 30 && k >= 2; k--) { if (!bf && cl[k].l > cl[k - 2].h) bf = [cl[k - 2].h, cl[k].l]; if (!sf && cl[k].h < cl[k - 2].l) sf = [cl[k].h, cl[k - 2].l]; }
+    if (bf) { pl(bf[1], '#9ccc65', 'Bull FVG', 3); pl(bf[0], '#9ccc65', '', 3); } if (sf) { pl(sf[1], '#9ccc65', 'Bear FVG', 3); pl(sf[0], '#9ccc65', '', 3); }
+    pl(A.hh, '#ff9f43', 'buy-side liquidity', 1); pl(A.ll, '#ff9f43', 'sell-side liquidity', 1); }
+  pl(e, sd === 'BUY' ? '#2fbf71' : '#ef5350', `${sd} ${A.sig ? 'SIGNAL' : '(setup)'}`, 0); pl(tp, '#2fbf71', `TP +${(1.5 * a).toFixed(1)}`); pl(sl, '#ef5350', `SL −${a.toFixed(1)}`);
+  (BOT?.open || []).filter(o => o.sym === s).forEach(o => { pl(+o.entry, '#4aa3ff', 'BOT ' + o.side, 0, 2); pl(+o.sl, '#ef5350', 'bot SL', 0, 2); pl(+o.tp, '#2fbf71', 'bot TP', 0, 2); });
+  const snap = t => { if (t < B[0].t) return null; let lo = 0, hi = B.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (B[m].t <= t) lo = m; else hi = m - 1; } return B[lo].t; };
+  const mk = [], ut = x => Date.parse(String(x).replace(' ', 'T') + ':00Z') / 1000;
+  const arrow = (t, buy, text, strong) => { const tt = snap(t); if (tt != null) mk.push({ time: tt, position: buy ? 'belowBar' : 'aboveBar', color: strong ? (buy ? '#2fbf71' : '#ef5350') : '#6b7a8c', shape: buy ? 'arrowUp' : 'arrowDown', text }); };
+  (BOT?.trades || []).filter(t => t.symbol === s).forEach(t => arrow(ut(t.entry_time_utc), t.side === 'BUY', `bot ${t.side} → ${t.exit_reason}`, true));
+  (BOT?.open || []).filter(o => o.sym === s).forEach(o => arrow(+o.entry_t, o.side === 'BUY', `bot ${o.side} (open)`, true));
+  if (A.sig || A.inOte) arrow(A.t, A.up, A.sig ? `${sd} signal` : `${sd} setup`, A.sig);
+  mk.sort((p, q) => p.time - q.time); cs.setMarkers(mk);
+  if (fit) chart.timeScale().setVisibleLogicalRange({ from: B.length - 180, to: B.length + 5 });
+}
+['tFib', 'tEma', 'tIchi', 'tSmc'].forEach(id => $('#' + id).addEventListener('change', () => selected && showIdx(selected, false)));
+document.querySelectorAll('#tfs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#tfs button').forEach(x => x.classList.toggle('on', x === b)); tf = +b.dataset.g; if (selected) showIdx(selected, true); }));
+
+// ---------- bot journal
+async function loadBot() {
+  try {
+    const d = await fetch('../data.json?ts=' + Date.now()).then(r => r.json()); BOT = d.deriv; if (!BOT) { $('#kBal').textContent = 'starting'; return; }
+    $('#kBal').textContent = '$' + Number(BOT.balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    $('#kBalS').textContent = `${BOT.n_trades} closed · data ${d.built_utc} UTC`;
+    $('#botOpen').innerHTML = BOT.open.length ? '<div class="scroll"><table><tr><th>Index</th><th>Side</th><th class="num">Entry</th><th class="num">SL</th><th class="num">TP</th></tr>' +
+      BOT.open.map(o => `<tr><td class="mono">${esc(NM[o.sym] || o.sym)}</td><td class="${o.side === 'SELL' ? 'neg' : 'pos'}">${esc(o.side)}</td><td class="num">${o.entry}</td><td class="num">${o.sl}</td><td class="num">${o.tp}</td></tr>`).join('') + '</table></div>' : '<div class="empty">No open trades.</div>';
+    const T = BOT.trades || [];
+    $('#botClosed').innerHTML = T.length ? '<div class="scroll"><table><tr><th>Index</th><th>Side</th><th>Exit (UTC)</th><th>Reason</th><th class="num">R</th><th class="num">$</th></tr>' +
+      T.slice(0, 10).map(t => `<tr><td class="mono">${esc(NM[t.symbol] || t.symbol)}</td><td>${esc(t.side)}</td><td class="mono">${esc(t.exit_time_utc)}</td><td>${esc(t.exit_reason)}</td><td class="num ${+t.R_net >= 0 ? 'pos' : 'neg'}">${(+t.R_net).toFixed(2)}</td><td class="num ${+t.pnl_usd >= 0 ? 'pos' : 'neg'}">${(+t.pnl_usd).toFixed(2)}</td></tr>`).join('') + '</table></div>' : '<div class="empty">No closed trades yet.</div>';
+    const rows = (BOT.open || []).map(o => ({ sym: o.sym, side: o.side, t: new Date(o.entry_t * 1000).toISOString().slice(0, 16).replace('T', ' '), res: 'OPEN', r: null, usd: null }))
+      .concat(T.map(t => ({ sym: t.symbol, side: t.side, t: t.entry_time_utc, res: t.exit_reason, r: +t.R_net, usd: +t.pnl_usd }))).sort((p, q) => q.t.localeCompare(p.t));
+    $('#taken').innerHTML = rows.length ? '<div class="scroll"><table><tr><th>Entry (UTC)</th><th>Index</th><th>Side</th><th>Result</th><th class="num">$</th></tr>' + rows.slice(0, 20).map(x =>
+      `<tr><td class="mono">${esc(x.t)}</td><td class="mono">${esc(NM[x.sym] || x.sym)}</td><td class="${x.side === 'SELL' ? 'neg' : 'pos'}">${esc(x.side)}</td><td class="${x.res === 'TP' ? 'pos' : x.res === 'SL' ? 'neg' : 'warn'}">${esc(x.res)}${x.r != null ? ` (${x.r >= 0 ? '+' : ''}${x.r.toFixed(2)}R)` : ''}</td><td class="num ${x.usd >= 0 ? 'pos' : 'neg'}">${x.usd != null ? x.usd.toFixed(2) : '–'}</td></tr>`).join('') + '</table></div>'
+      : '<div class="empty">No bot trades yet. The bot checks every closed H1 bar, 24/7.</div>';
+    if (selected) showIdx(selected, false);
+  } catch (e) { $('#kBal').textContent = '?'; }
+}
+$('#notify').addEventListener('click', async () => {
+  if (!('Notification' in window)) return;
+  if (!alertsOn && (await Notification.requestPermission()) === 'granted') alertsOn = true; else alertsOn = false;
+  $('#notify').textContent = alertsOn ? '🔔 Alerts on' : '🔔 Alerts off'; $('#notify').classList.toggle('on', alertsOn);
+});
+setInterval(() => { const n = new Date(), m = 59 - n.getUTCMinutes(), s = 59 - n.getUTCSeconds(); $('#nextBar').textContent = `next H1 close in ${m}:${String(s).padStart(2, '0')}`; }, 1000);
+(async () => {
+  await loadBot(); await connect(); await refreshAll();
+  setInterval(refreshAll, 2 * 60 * 1000); setInterval(loadBot, 10 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
