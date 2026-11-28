@@ -1,0 +1,9 @@
+index      trades  BUY/SELL             optimistic fill            realistic (spike) fill
+BOOM1000       74   38/36    win 39.2% avgR -0.050 worst  -1.0R  win 39.2% avgR -0.050 worst  -1.0R
+BOOM300N       59   33/26    win 25.4% avgR -0.394 worst  -1.0R  win 25.4% avgR -0.394 worst  -1.0R
+BOOM500        68   35/33    win 47.1% avgR +0.146 worst  -1.0R  win 47.1% avgR +0.146 worst  -1.0R
+CRASH1000      58   37/21    win 46.6% avgR +0.134 worst  -1.0R  win 46.6% avgR +0.134 worst  -1.0R
+CRASH300N      59   38/21    win 45.8% avgR +0.114 worst  -1.0R  win 45.8% avgR +0.114 worst  -1.0R
+CRASH500       51   28/23    win 35.3% avgR -0.148 worst  -1.0R  win 35.3% avgR -0.148 worst  -1.0R
+ALL optimistic: trades 369 win 40.1% avgR -0.027 t -0.4
+ALL realistic : trades 369 win 40.1% avgR -0.027 t -0.4
