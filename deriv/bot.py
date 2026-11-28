@@ -1,12 +1,14 @@
 """Deriv CV 01 paper trader — ICT OTE rule on Deriv volatility indices. Runs once per hour, every day.
 
-Rule (the only one of 5 technical rules that beat random entries in the Nov 2025 - Nov 2026 backtest:
-360 trades, win 46.7%, +0.14R after costs; break-even at 1.5:1 is ~41%; may still be luck, hence this forward test):
+Rule (the only one of 5 technical rules that beat random entries in the Nov 2025 - Nov 2026 backtest; with this bot's
+exact trade handling: 480 trades (~9/week), +0.137R after cost, t 2.4. Review 28 Nov 2026: on 9 indices the rule had never
+seen (1HZ15V/30V/90V, Jump 10-100, Step) it LOST: 502 trades, win 39.6%, -0.06R. In 48 simulated random markets the best
+of 5 rules reached t >= 2.1 in 4%. So the edge is most likely luck; this paper bot is kept as a forward test only):
   - swing = highest high / lowest low of the last 48 closed H1 bars; up swing if the high came after the low
   - BUY  when the last closed bar sits in the 62-79% retracement (OTE) of an UP swing and closes above the
          previous bar's high (confirmation); SELL is the mirror (down swing, close below previous bar's low)
   - entry = next bar's open, SL = 1 x ATR14, TP = 1.5 x ATR14, close at the 48th bar if neither is hit
-  - one trade per index at a time, risk 0.25% of the paper balance, cost 0.03R per trade
+  - one trade per index at a time, risk 0.25% of the paper balance, cost 0.03R per trade + overnight swap
 Writes deriv/data/trades.csv, signals.csv, state.json and deriv/SUMMARY.md. Paper only; no orders are sent.
 """
 import csv, datetime as dt, json, os, time
@@ -18,11 +20,12 @@ NAMES = {'R_10': 'Volatility 10', 'R_25': 'Volatility 25', 'R_50': 'Volatility 5
          'R_100': 'Volatility 100', '1HZ10V': 'Volatility 10 (1s)', '1HZ25V': 'Volatility 25 (1s)',
          '1HZ50V': 'Volatility 50 (1s)', '1HZ75V': 'Volatility 75 (1s)', '1HZ100V': 'Volatility 100 (1s)'}
 RR, HOLD, SW, COST_R = 1.5, 48, 48, 0.03
+SWAP_RATE = 7.5   # % per year, Deriv synthetic swap = position value x rate / 360 per night (check your MT5 symbol spec)
 OTE_LO, OTE_HI = 0.62, 0.79
 START_BALANCE, RISK_PCT = 10000.0, 0.25
 WS_URLS = ['wss://ws.derivws.com/websockets/v3?app_id=1089', 'wss://api.derivws.com/trading/v1/options/ws/public']
 TRADE_COLS = ['symbol', 'side', 'signal_bar_utc', 'entry_time_utc', 'entry', 'SL', 'TP', 'exit_time_utc', 'exit',
-              'exit_reason', 'bars_held', 'R_gross', 'cost_R', 'R_net', 'risk_usd', 'pnl_usd', 'balance_after', 'pred']
+              'exit_reason', 'bars_held', 'R_gross', 'cost_R', 'swap_R', 'R_net', 'risk_usd', 'pnl_usd', 'balance_after', 'pred']
 SIG_COLS = ['run_utc', 'symbol', 'bar_utc', 'pred_long', 'pred_short', 'swing', 'retr', 'action']
 
 
@@ -95,12 +98,15 @@ def manage(sym, pos, B, now, state):
         if hit is None and k >= HOLD:
             hit = ('TIME_48H', b['c'], (b['c'] - pos['entry']) / pos['atr'] * (1 if lg else -1))
         if hit:
-            reason, px, r = hit; rn = r - COST_R; pnl = rn * pos['risk_usd']
+            reason, px, r = hit
+            nights = int((b['t'] + 3600) // 86400 - pos['entry_t'] // 86400)
+            swap = nights * (SWAP_RATE / 360) / (pos['atr'] / pos['entry'] * 100)   # swap in R units
+            rn = r - COST_R - swap; pnl = rn * pos['risk_usd']
             state['balance'] = round(state['balance'] + pnl, 2)
             append_csv('trades.csv', TRADE_COLS, {
                 'symbol': sym, 'side': pos['side'], 'signal_bar_utc': utc(pos['signal_t']), 'entry_time_utc': utc(pos['entry_t']),
                 'entry': pos['entry'], 'SL': pos['sl'], 'TP': pos['tp'], 'exit_time_utc': utc(b['t'] + 3600), 'exit': px,
-                'exit_reason': reason, 'bars_held': k, 'R_gross': round(r, 3), 'cost_R': COST_R, 'R_net': round(rn, 3),
+                'exit_reason': reason, 'bars_held': k, 'R_gross': round(r, 3), 'cost_R': COST_R, 'swap_R': round(swap, 4), 'R_net': round(rn, 3),
                 'risk_usd': pos['risk_usd'], 'pnl_usd': round(pnl, 2), 'balance_after': state['balance'], 'pred': pos['pred']})
             print(f'CLOSE {sym} {pos["side"]} {reason} R {rn:+.2f} ${pnl:+.2f}')
             return True
@@ -149,11 +155,21 @@ def summary(state):
     p = os.path.join(DATA, 'trades.csv')
     rows = list(csv.DictReader(open(p, newline=''))) if os.path.exists(p) else []
     R = [float(r['R_net']) for r in rows]; n = len(R)
+    import statistics as st_
+    avg = sum(R) / n if n else 0; sd = st_.pstdev(R) if n > 1 else 0; t = avg / sd * n ** 0.5 if sd else 0
+    wins = sum(r > 0 for r in R) / n * 100 if n else 0
+    if n < 150: verdict = f'collecting data: {n}/150 trades to the first checkpoint'
+    elif avg > 0 and wins > 41: verdict = 'checkpoint passed (avg R > 0, win > 41%) - keep testing to 330 trades'
+    else: verdict = 'checkpoint FAILED (pre-set rule: avg R <= 0 or win <= 41% at 150 trades) - treat the backtest edge as luck'
     L = ['# Deriv CV 01 — ICT OTE paper bot (volatility indices, risk 1 ATR : target 1.5 ATR)', '',
          f'Started {state["started"]} UTC · last run {state.get("last_run", "-")} UTC', '',
          '| Metric | Value |', '|---|---|', f'| Paper balance | ${state["balance"]:,.2f} |', f'| Closed trades | {n} |',
          f'| Win rate | {sum(r > 0 for r in R) / n * 100:.0f}% (backtest 46.7%, break-even ~41%) |' if n else '| Win rate | - |',
-         f'| Average R | {sum(R) / n:+.3f} (backtest +0.14) |' if n else '| Average R | - |', f'| Open trades | {len(state["open"])} |', '']
+         f'| Average R | {avg:+.3f} (backtest +0.137, out-of-sample -0.06) |' if n else '| Average R | - |',
+         f'| t-stat | {t:+.2f} (2.0 needed; ~330 trades for a fair verdict) |' if n else '| t-stat | - |',
+         f'| Open trades | {len(state["open"])} |', '', f'**Forward-test status:** {verdict}', '',
+         'Pre-set checkpoints (decided 28 Nov 2026, before any forward trade): at 150 trades continue only if average R > 0 and win > 41%; '
+         'at 330 trades the edge counts as real only if t >= 2. Costs include 0.03R spread and overnight swap at 7.5%/yr.', '']
     for r in rows[-20:][::-1]:
         L.append(f'- {r["symbol"]} {r["side"]} {r["entry_time_utc"]} → {r["exit_reason"]} {r["R_net"]}R ${r["pnl_usd"]}')
     open(os.path.join(ROOT, 'SUMMARY.md'), 'w').write('\n'.join(L) + '\n')

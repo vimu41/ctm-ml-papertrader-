@@ -1,0 +1,11 @@
+CV 01 rule unchanged, on indices NOT used when the rule was chosen (true out-of-sample). Cost 0.03R + swap -7.5%/yr.
+1HZ15V   2025-11-28 trades   57 win  54.4% avgR +0.318
+1HZ30V   2025-11-28 trades   52 win  32.7% avgR -0.223
+1HZ90V   2025-11-28 trades   65 win  32.3% avgR -0.226
+JD10     2025-11-28 trades   67 win  38.8% avgR -0.081
+JD25     2025-11-28 trades   57 win  38.6% avgR -0.072
+JD50     2025-11-28 trades   53 win  35.8% avgR -0.165
+JD75     2025-11-28 trades   52 win  40.4% avgR -0.023
+JD100    2025-11-28 trades   46 win  34.8% avgR -0.163
+stpRNG   2025-11-28 trades   53 win  49.1% avgR +0.126
+ALL OOS  trades 502 win 39.6% avgR -0.057 t -1.04   (in-sample was +0.137, t 2.4; break-even win ~41%)
