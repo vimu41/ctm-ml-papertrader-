@@ -1,0 +1,44 @@
+
+FGI-style strategies, H1, 2015-2026, fixed SL, no averaging, spread included, target 1.5 x risk (break-even win = 40%)
+
+== FOREX (15 pairs)
+S1 Trend follow (H1+H4 trend, pullback) | stop>=0.5 ATR    trades 31576 (52.6/wk) win  36.1% avgR -0.272 t -40.0 | gross -0.099 | 15-20 -0.247 · 21-26 -0.296
+S1 Trend follow (H1+H4 trend, pullback) | stop>=1.0 ATR    trades 29057 (48.4/wk) win  36.6% avgR -0.220 t -31.1 | gross -0.086 | 15-20 -0.199 · 21-26 -0.240
+S2 Extreme zones (2.618 ATR band) | stop>=0.5 ATR          trades 57038 (95.1/wk) win  39.5% avgR -0.171 t -33.3 | gross -0.015 | 15-20 -0.176 · 21-26 -0.165
+S2 Extreme zones (2.618 ATR band) | stop>=1.0 ATR          trades 51663 (86.1/wk) win  39.5% avgR -0.138 t -25.6 | gross -0.015 | 15-20 -0.142 · 21-26 -0.133
+S3 SR letters (swing S/R break) | stop>=0.5 ATR            trades 59041 (98.4/wk) win  41.3% avgR -0.087 t -17.7 | gross +0.011 | 15-20 -0.079 · 21-26 -0.096
+S3 SR letters (swing S/R break) | stop>=1.0 ATR            trades 57607 (96.0/wk) win  41.3% avgR -0.081 t -16.3 | gross +0.009 | 15-20 -0.071 · 21-26 -0.091
+S3b SR letters + H4 trend | stop>=0.5 ATR                  trades 53213 (88.7/wk) win  40.7% avgR -0.105 t -20.1 | gross +0.003 | 15-20 -0.086 · 21-26 -0.123
+S3b SR letters + H4 trend | stop>=1.0 ATR                  trades 52012 (86.7/wk) win  40.6% avgR -0.097 t -18.4 | gross +0.001 | 15-20 -0.078 · 21-26 -0.115
+S4 FGI flip (B/S) + H4 trend | stop>=0.5 ATR               trades  9216 (15.4/wk) win  40.4% avgR -0.111 t  -8.9 | gross -0.005 | 15-20 -0.066 · 21-26 -0.155
+S4 FGI flip (B/S) + H4 trend | stop>=1.0 ATR               trades  9216 (15.4/wk) win  40.4% avgR -0.103 t  -8.2 | gross -0.005 | 15-20 -0.056 · 21-26 -0.149
+S0 Random candles (baseline) | stop>=0.5 ATR               trades  6270 (10.4/wk) win  40.5% avgR -0.169 t -10.9 | gross +0.010 | 15-20 -0.149 · 21-26 -0.191
+S0 Random candles (baseline) | stop>=1.0 ATR               trades  6230 (10.4/wk) win  40.2% avgR -0.129 t  -8.3 | gross +0.004 | 15-20 -0.103 · 21-26 -0.157
+
+== CRYPTO (BTC, ETH)
+S1 Trend follow (H1+H4 trend, pullback) | stop>=0.5 ATR    trades  4940 ( 8.2/wk) win  36.2% avgR -0.210 t -12.3 | gross -0.097 | 15-20 -0.198 · 21-26 -0.219
+S1 Trend follow (H1+H4 trend, pullback) | stop>=1.0 ATR    trades  4380 ( 7.3/wk) win  36.7% avgR -0.167 t  -9.2 | gross -0.083 | 15-20 -0.155 · 21-26 -0.175
+S2 Extreme zones (2.618 ATR band) | stop>=0.5 ATR          trades  7220 (12.0/wk) win  39.0% avgR -0.119 t  -8.4 | gross -0.032 | 15-20 -0.125 · 21-26 -0.115
+S2 Extreme zones (2.618 ATR band) | stop>=1.0 ATR          trades  6649 (11.1/wk) win  38.2% avgR -0.122 t  -8.3 | gross -0.052 | 15-20 -0.133 · 21-26 -0.115
+S3 SR letters (swing S/R break) | stop>=0.5 ATR            trades  8892 (14.8/wk) win  41.0% avgR -0.059 t  -4.7 | gross +0.003 | 15-20 -0.051 · 21-26 -0.064
+S3 SR letters (swing S/R break) | stop>=1.0 ATR            trades  8662 (14.4/wk) win  40.5% avgR -0.067 t  -5.3 | gross -0.010 | 15-20 -0.064 · 21-26 -0.069
+S3b SR letters + H4 trend | stop>=0.5 ATR                  trades  8455 (14.1/wk) win  41.6% avgR -0.044 t  -3.4 | gross +0.026 | 15-20 -0.008 · 21-26 -0.067
+S3b SR letters + H4 trend | stop>=1.0 ATR                  trades  8185 (13.6/wk) win  41.3% avgR -0.044 t  -3.3 | gross +0.019 | 15-20 -0.009 · 21-26 -0.066
+S4 FGI flip (B/S) + H4 trend | stop>=0.5 ATR               trades  1147 ( 1.9/wk) win  39.3% avgR -0.103 t  -2.9 | gross -0.036 | 15-20 -0.119 · 21-26 -0.093
+S4 FGI flip (B/S) + H4 trend | stop>=1.0 ATR               trades  1147 ( 1.9/wk) win  39.2% avgR -0.100 t  -2.9 | gross -0.038 | 15-20 -0.106 · 21-26 -0.096
+S0 Random candles (baseline) | stop>=0.5 ATR               trades   931 ( 1.6/wk) win  38.3% avgR -0.161 t  -4.1 | gross -0.043 | 15-20 -0.235 · 21-26 -0.111
+S0 Random candles (baseline) | stop>=1.0 ATR               trades   921 ( 1.5/wk) win  38.7% avgR -0.121 t  -3.1 | gross -0.035 | 15-20 -0.195 · 21-26 -0.071
+
+== GOLD/SILVER
+S1 Trend follow (H1+H4 trend, pullback) | stop>=0.5 ATR    trades  4081 ( 6.8/wk) win  37.0% avgR -0.198 t -10.4 | gross -0.076 | 15-20 -0.238 · 21-26 -0.156
+S1 Trend follow (H1+H4 trend, pullback) | stop>=1.0 ATR    trades  3708 ( 6.2/wk) win  37.9% avgR -0.146 t  -7.3 | gross -0.053 | 15-20 -0.167 · 21-26 -0.123
+S2 Extreme zones (2.618 ATR band) | stop>=0.5 ATR          trades  7112 (11.9/wk) win  38.4% avgR -0.148 t -10.3 | gross -0.045 | 15-20 -0.164 · 21-26 -0.133
+S2 Extreme zones (2.618 ATR band) | stop>=1.0 ATR          trades  6396 (10.7/wk) win  38.6% avgR -0.119 t  -7.9 | gross -0.039 | 15-20 -0.137 · 21-26 -0.103
+S3 SR letters (swing S/R break) | stop>=0.5 ATR            trades  7231 (12.1/wk) win  41.0% avgR -0.064 t  -4.6 | gross +0.002 | 15-20 -0.085 · 21-26 -0.043
+S3 SR letters (swing S/R break) | stop>=1.0 ATR            trades  7040 (11.7/wk) win  40.7% avgR -0.066 t  -4.7 | gross -0.006 | 15-20 -0.085 · 21-26 -0.047
+S3b SR letters + H4 trend | stop>=0.5 ATR                  trades  6711 (11.2/wk) win  42.8% avgR -0.024 t  -1.6 | gross +0.051 | 15-20 -0.039 · 21-26 -0.009
+S3b SR letters + H4 trend | stop>=1.0 ATR                  trades  6508 (10.8/wk) win  42.5% avgR -0.023 t  -1.5 | gross +0.044 | 15-20 -0.038 · 21-26 -0.008
+S4 FGI flip (B/S) + H4 trend | stop>=0.5 ATR               trades  1074 ( 1.8/wk) win  38.5% avgR -0.120 t  -3.3 | gross -0.045 | 15-20 -0.124 · 21-26 -0.116
+S4 FGI flip (B/S) + H4 trend | stop>=1.0 ATR               trades  1074 ( 1.8/wk) win  39.0% avgR -0.100 t  -2.8 | gross -0.034 | 15-20 -0.120 · 21-26 -0.085
+S0 Random candles (baseline) | stop>=0.5 ATR               trades   819 ( 1.4/wk) win  41.3% avgR -0.091 t  -2.1 | gross +0.028 | 15-20 -0.098 · 21-26 -0.084
+S0 Random candles (baseline) | stop>=1.0 ATR               trades   807 ( 1.3/wk) win  41.9% avgR -0.045 t  -1.0 | gross +0.043 | 15-20 -0.045 · 21-26 -0.046
