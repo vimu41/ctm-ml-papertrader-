@@ -94,10 +94,10 @@ main{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)}
     <div class="card">
       <h2>All indices · last closed H1 bar · swing = last 48 bars</h2>
       <div class="scroll"><table>
-        <thead><tr><th>Index</th><th class="num">Price</th><th>Swing</th><th class="num">Retrace</th><th>Status</th><th>Your filters</th><th class="num">ATR</th></tr></thead>
+        <thead><tr><th>Index</th><th class="num">Price</th><th>Swing</th><th class="num">Retrace</th><th>Bot rule</th><th>Your filters (extra)</th><th class="num">ATR</th></tr></thead>
         <tbody id="rows"><tr><td colspan="7" class="empty">Loading prices from Deriv…</td></tr></tbody>
       </table></div>
-      <div class="legend"><span>OTE zone = 62–79% retracement of the last swing. Bot trades when price is in the zone and the bar closes beyond the previous bar (confirmation).</span></div>
+      <div class="legend"><span><b>Bot rule</b> decides the trade: price must be in the OTE zone (62–79% retracement) <i>and</i> the bar must close beyond the previous bar. <b>Your filters</b> are extra confirmation only; they are greyed out until the bot rule has a setup, so "2/2" with "no setup" means: filters agree, but there is no trade yet.</span></div>
     </div>
     <div class="card"><h2>Signals the bot took</h2><div id="taken"><div class="empty">–</div></div></div>
   </section>
@@ -199,8 +199,8 @@ function setStatus(t, c) { $('#status').textContent = t; $('#dot').className = '
 function status(A) {
   if (A.sig) return `<span class="pill sig ${A.side === 'SELL' ? 's' : ''}">${A.side} SIGNAL</span>`;
   if (A.inOte) return '<span class="pill near">in OTE · wait candle</span>';
-  if (A.retr > 0.5 && A.retr < 0.62) return '<span class="pill">near zone</span>';
-  return '<span class="pill">wait</span>';
+  if (A.retr > 0.5 && A.retr < 0.62) return `<span class="pill" title="Price must retrace 62–79% first">near zone · ${(A.retr * 100).toFixed(0)}%</span>`;
+  return `<span class="pill" title="No setup: price is not in the 62–79% OTE zone">no setup</span>`;
 }
 function render() {
   let sig = 0, ote = 0;
@@ -211,7 +211,7 @@ function render() {
     const on = FILTERS.filter(f => fOn[f.id]);
     return `<tr data-s="${s}" class="${s === selected ? 'sel' : ''}"><td class="mono">${NM[s]}</td><td class="num">${r.price.toFixed(2)}</td>
       <td class="${A.up ? 'pos' : 'neg'}">${A.up ? '▲ up' : '▼ down'}</td><td class="num"><span class="zone ${A.inOte ? 'warn' : ''}">${(A.retr * 100).toFixed(0)}%</span></td><td>${status(A)}</td>
-      <td><span class="chk">${on.map(f => `<i class="${A.F[f.id] ? 'ok' : 'bad'}" title="${esc(f.n)}"></i>`).join('') || '<span class="dim">none on</span>'}</span> ${on.length ? `<span class="dim mono">${on.filter(f => A.F[f.id]).length}/${on.length}</span>` : ''}</td>
+      <td style="${A.inOte || A.sig ? '' : 'opacity:.35'}" title="${A.inOte || A.sig ? 'Your extra filters for this setup' : 'Only matters when the bot rule has a setup'}"><span class="chk">${on.map(f => `<i class="${A.F[f.id] ? 'ok' : 'bad'}" title="${esc(f.n)}"></i>`).join('') || '<span class="dim">none on</span>'}</span> ${on.length ? `<span class="dim mono">${on.filter(f => A.F[f.id]).length}/${on.length}</span>` : ''}</td>
       <td class="num">${A.atr.toFixed(2)}</td></tr>`;
   }).join('');
   $('#kSig').textContent = sig; $('#kOte').textContent = ote;
