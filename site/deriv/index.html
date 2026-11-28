@@ -244,7 +244,7 @@ async function showIdx(s, fit) {
   const sd = A.side, e = A.c, a = A.atr, sl = sd === 'BUY' ? e - a : e + a, tp = sd === 'BUY' ? e + 1.5 * a : e - 1.5 * a;
   const badge = A.sig ? `<span class="sidebig ${sd === 'BUY' ? 'b' : 's'}">${sd} SIGNAL</span>` : A.inOte ? `<span class="sidebig w">in OTE · ${sd} setup</span>` : `<span class="sidebig w">wait</span>`;
   $('#dTitle').innerHTML = `${badge}${NM[s]} · retracement ${(A.retr * 100).toFixed(0)}% of ${A.up ? 'up' : 'down'} swing`;
-  $('#levels').innerHTML = `<div class="lv"><div class="k">${sd} entry (now)</div><div class="v">${e.toFixed(2)}</div></div>
+  $('#levels').innerHTML = !(A.sig || A.inOte) ? `<div class="lv" style="grid-column:1/-1"><div class="k">No setup</div><div class="v dim">Entry / SL / TP appear when price reaches the OTE zone (${Math.min(A.fib(0.62), A.fib(0.79)).toFixed(2)}–${Math.max(A.fib(0.62), A.fib(0.79)).toFixed(2)})</div></div>` : `<div class="lv"><div class="k">${sd} entry (now)</div><div class="v">${e.toFixed(2)}</div></div>
     <div class="lv"><div class="k">Stop −1 ATR</div><div class="v neg">${sl.toFixed(2)}</div><div class="k">${a.toFixed(2)} pts</div></div>
     <div class="lv"><div class="k">Target +1.5 ATR</div><div class="v pos">${tp.toFixed(2)}</div><div class="k">${(1.5 * a).toFixed(2)} pts</div></div>`;
   ensureChart(); if (!chart) return;
@@ -265,7 +265,7 @@ async function showIdx(s, fit) {
     for (let k = n - 1; k >= n - 30 && k >= 2; k--) { if (!bf && cl[k].l > cl[k - 2].h) bf = [cl[k - 2].h, cl[k].l]; if (!sf && cl[k].h < cl[k - 2].l) sf = [cl[k].h, cl[k - 2].l]; }
     if (bf) { pl(bf[1], '#9ccc65', 'Bull FVG', 3); pl(bf[0], '#9ccc65', '', 3); } if (sf) { pl(sf[1], '#9ccc65', 'Bear FVG', 3); pl(sf[0], '#9ccc65', '', 3); }
     pl(A.hh, '#ff9f43', 'buy-side liquidity', 1); pl(A.ll, '#ff9f43', 'sell-side liquidity', 1); }
-  pl(e, sd === 'BUY' ? '#2fbf71' : '#ef5350', `${sd} ${A.sig ? 'SIGNAL' : '(setup)'}`, 0); pl(tp, '#2fbf71', `TP +${(1.5 * a).toFixed(1)}`); pl(sl, '#ef5350', `SL −${a.toFixed(1)}`);
+  if (A.sig || A.inOte) { pl(e, sd === 'BUY' ? '#2fbf71' : '#ef5350', `${sd} ${A.sig ? 'SIGNAL' : '(setup)'}`, 0); pl(tp, '#2fbf71', `TP +${(1.5 * a).toFixed(1)}`); pl(sl, '#ef5350', `SL −${a.toFixed(1)}`); }
   (BOT?.open || []).filter(o => o.sym === s).forEach(o => { pl(+o.entry, '#4aa3ff', 'BOT ' + o.side, 0, 2); pl(+o.sl, '#ef5350', 'bot SL', 0, 2); pl(+o.tp, '#2fbf71', 'bot TP', 0, 2); });
   const snap = t => { if (t < B[0].t) return null; let lo = 0, hi = B.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (B[m].t <= t) lo = m; else hi = m - 1; } return B[lo].t; };
   const mk = [], ut = x => Date.parse(String(x).replace(' ', 'T') + ':00Z') / 1000;
