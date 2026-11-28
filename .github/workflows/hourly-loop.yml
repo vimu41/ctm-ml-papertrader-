@@ -1,6 +1,6 @@
 name: Hourly loop (reliable runner)
 # GitHub's own cron often skips hours. This job starts every 5 hours and itself runs all
-# three bots once an hour for ~5h40m, then starts its own successor (public repo: Actions minutes are free).
+# all bots once an hour for ~5h40m, then starts its own successor (public repo: Actions minutes are free).
 on:
   schedule:
     - cron: '3 */5 * * *'
@@ -31,9 +31,12 @@ jobs:
           while [ $(date +%s) -lt $end ]; do
             git pull -q --rebase || git rebase --abort || true
             dow=$(date -u +%u)                       # 6 = Saturday: forex closed
-            if [ "$dow" != "6" ]; then python bot.py || true; python fx_v2/bot.py || true; fi
+            if [ "$dow" != "6" ]; then python bot.py || true; python fx_v2/bot.py || true; CTM_MIN_PIPS=50 CTM_DATA=fx_v3_50/data python bot.py || true; fi
             python crypto/bot.py || true
-            git add -A data SUMMARY.md fx_v2/data fx_v2/SUMMARY.md crypto/data crypto/SUMMARY.md
+            python deriv/bot.py || true                # Deriv CV 01: volatility indices trade 24/7
+            mkdir -p fx_v3_50/data
+            git add -A data SUMMARY.md fx_v2/data fx_v2/SUMMARY.md crypto/data crypto/SUMMARY.md || true
+            git add -A fx_v3_50 deriv/data deriv/SUMMARY.md 2>/dev/null || true
             git diff --cached --quiet || git commit -q -m "hourly loop update $(date -u +'%Y-%m-%d %H:%M')"
             for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 10; done
             gh workflow run dashboard.yml --ref main || true    # refresh the dashboard page

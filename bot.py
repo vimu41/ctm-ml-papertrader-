@@ -13,7 +13,12 @@ import csv, datetime as dt, json, math, os, sys, time
 import engine
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(ROOT, 'data')
+# v3-50 variant: same model and rule, but only trades whose target is at least CTM_MIN_PIPS pips (run with
+# CTM_MIN_PIPS=50 CTM_DATA=fx_v3_50/data). Backtest 2021-2026: ~0.7 trades/week, win 50%, +0.19R/trade.
+MIN_PIPS = float(os.environ.get('CTM_MIN_PIPS', '0'))
+DATA = os.path.join(ROOT, os.environ.get('CTM_DATA', 'data'))
+SUMMARY_DIR = os.path.dirname(DATA) if os.environ.get('CTM_DATA') else ROOT
+PIP = lambda s: 0.01 if 'JPY' in s else 0.1 if s == 'XAUUSD' else 0.01 if s == 'XAGUSD' else 0.0001
 SYMBOLS = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'EURJPY', 'GBPJPY', 'EURGBP',
            'XAUUSD', 'XAGUSD', 'AUDJPY', 'EURAUD', 'GBPAUD', 'CADJPY']
 RR, HOLD, MAX_OPEN, MAX_PER_WEEK = 1.5, 48, 6, 10
@@ -162,6 +167,7 @@ def run(feed, now):
                 nxt = [b for b in H1 if b['t'] == F['t'] + 3600]
                 bw = dt.datetime.fromtimestamp(F['t'], dt.timezone.utc).strftime('%G-W%V')
                 if rollover: action = 'skip_rollover'
+                elif MIN_PIPS and RR * F['atr'] / PIP(sym) < MIN_PIPS: action = 'skip_small_target'
                 elif sym in state['open']: action = 'skip_has_pos'
                 elif wc.get(bw, 0) >= MAX_PER_WEEK: action = 'skip_week_cap'
                 elif len(state['open']) >= MAX_OPEN: action = 'skip_max_open'
@@ -193,7 +199,8 @@ def write_summary(state):
     eq = peak = dd = 0.0
     for r in R:
         eq += r; peak = max(peak, eq); dd = min(dd, eq - peak)
-    lines = ['# CTM ML v3 paper trading - live forward test (risk 1 ATR, target 1.5 ATR)', '',
+    title = f'CTM ML v3-{MIN_PIPS:.0f} (targets of {MIN_PIPS:.0f}+ pips only)' if MIN_PIPS else 'CTM ML v3'
+    lines = [f'# {title} paper trading - live forward test (risk 1 ATR, target 1.5 ATR)', '',
              f'Started {state["started"]} UTC · last run {state.get("last_run", "-")} UTC', '',
              '| Metric | Value |', '|---|---|',
              f'| Paper balance | ${state["balance"]:,.2f} (start ${START_BALANCE:,.0f}) |',
@@ -212,7 +219,7 @@ def write_summary(state):
         for r in rows[-20:][::-1]:
             lines.append(f'| {r["symbol"]} | {r["side"]} | {r["entry_time_utc"]} | {r["exit_time_utc"]} | {r["exit_reason"]} | {r["R_net"]} | {r["pnl_usd"]} |')
     lines += ['', 'Full journal: `data/trades.csv` · every signal: `data/signals.csv`. Paper trades on Deriv public prices, spread deducted; no real or demo orders are placed.']
-    open(os.path.join(ROOT, 'SUMMARY.md'), 'w').write('\n'.join(lines) + '\n')
+    open(os.path.join(SUMMARY_DIR, 'SUMMARY.md'), 'w').write('\n'.join(lines) + '\n')
 
 
 if __name__ == '__main__':
