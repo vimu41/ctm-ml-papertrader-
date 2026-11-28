@@ -1,7 +1,7 @@
 """Download H1 candle history for Deriv synthetic (volatility) indices, 2021 -> now.
 Runs on GitHub Actions (the Deriv websocket is reachable there). Output: deriv/history/<SYM>_H1.csv.gz"""
-import csv, gzip, json, os, time, websocket
-SYMS = ['R_10', 'R_25', 'R_50', 'R_75', 'R_100', '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V']
+import sys, csv, gzip, json, os, time, websocket
+SYMS = sys.argv[1:] or ['R_10', 'R_25', 'R_50', 'R_75', 'R_100', '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V']
 URLS = ['wss://ws.derivws.com/websockets/v3?app_id=1089', 'wss://api.derivws.com/trading/v1/options/ws/public']
 START = 1609459200  # 2021-01-01
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'history'); os.makedirs(OUT, exist_ok=True)
