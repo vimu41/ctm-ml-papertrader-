@@ -1,0 +1,44 @@
+name: Boom/Crash history (one-off)
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: boomcrash-history
+  cancel-in-progress: false
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        sym: [BOOM300N, BOOM500, BOOM1000, CRASH300N, CRASH500, CRASH1000]
+        tf: [{g: 3600, d: 0}, {g: 60, d: 45}]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install websocket-client
+      - run: GRAN=${{ matrix.tf.g }} ${{ matrix.tf.d && format('DAYS={0}', matrix.tf.d) || '' }} python deriv/fetch_history.py ${{ matrix.sym }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bc-${{ matrix.sym }}-${{ matrix.tf.g }}
+          path: deriv/history/${{ matrix.sym }}_*.csv.gz
+  commit:
+    needs: fetch
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/h
+      - run: |
+          mkdir -p deriv/history && cp /tmp/h/*/*.csv.gz deriv/history/ && ls -la deriv/history
+          git config user.name "ctm-bot"
+          git config user.email "ctm-bot@users.noreply.github.com"
+          git add deriv/history
+          git diff --cached --quiet || git commit -m "boom/crash history"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 10; done
