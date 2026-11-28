@@ -97,7 +97,7 @@ function kpis(b, color) {
   return `<div class="grid kpis">
     <div class="card kpi"><h2><span style="color:${color}">●</span> Paper balance</h2><div class="v">${money(b.balance)}</div><div class="s ${pnl >= 0 ? 'pos' : 'neg'}">${pnl >= 0 ? '+' : ''}${money(pnl).replace('$-', '-$')} since ${esc(b.started || '-')}</div></div>
     <div class="card kpi"><h2>Closed trades</h2><div class="v">${s.n}</div><div class="s">${b.open.length} open now</div></div>
-    <div class="card kpi"><h2>Win rate</h2><div class="v">${s.win == null ? '–' : s.win.toFixed(0) + '%'}</div><div class="s">TP is 2× the stop</div></div>
+    <div class="card kpi"><h2>Win rate</h2><div class="v">${s.win == null ? '–' : s.win.toFixed(0) + '%'}</div><div class="s">TP is ${/v2|Crypto/.test(b.name) ? 2 : 1.5}× the stop</div></div>
     <div class="card kpi"><h2>Avg R / trade</h2><div class="v ${s.avg == null ? '' : s.avg >= 0 ? 'pos' : 'neg'}">${s.avg == null ? '–' : f2(s.avg)}</div><div class="s">backtest ≈ ${f2(b.backtest_r)}</div></div>
     <div class="card kpi"><h2>Worst drawdown</h2><div class="v">${s.dd.toFixed(2)}R</div><div class="s">total ${f2(s.total)}R</div></div>
     <div class="card kpi"><h2>Bot health</h2><div class="v" style="font-size:16px">${esc(ageText(b.last_run))}</div><div class="s">${b.bars_week} bars checked in 7 days</div></div>
