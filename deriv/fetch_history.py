@@ -15,19 +15,22 @@ def conn():
 ws = conn()
 for s in SYMS:
     rows, end = {}, 'latest'
-    for _ in range(40):
+    for _ in range(120):
         try:
             ws.send(json.dumps({'ticks_history': s, 'style': 'candles', 'granularity': 3600, 'count': 5000, 'end': end}))
             m = json.loads(ws.recv())
         except Exception as e:
             print(s, 'retry', e); time.sleep(3); ws = conn(); continue
-        if m.get('error'): print(s, m['error'].get('message')); break
+        if m.get('error'):
+            msg = m['error'].get('message', '')
+            if 'rate limit' in msg.lower(): print(s, 'rate limit, waiting 65s', flush=True); time.sleep(65); continue
+            print(s, msg); break
         c = m.get('candles') or []
         if not c: break
         for k in c: rows[int(k['epoch'])] = (k['open'], k['high'], k['low'], k['close'])
         first = int(c[0]['epoch'])
         if first <= START or len(c) < 10: break
-        end = first - 1; time.sleep(0.3)
+        end = first - 1; time.sleep(2)
     if not rows: continue
     with gzip.open(f'{OUT}/{s}_H1.csv.gz', 'wt', newline='') as f:
         w = csv.writer(f); w.writerow(['time', 'open', 'high', 'low', 'close'])
